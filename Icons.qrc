@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Resoure/CoilBalck.png</file>
+        <file>Resoure/CoilRed.png</file>
+        <file>Resoure/com.png</file>
+        <file>Resoure/OpenFile.png</file>
+    </qresource>
+</RCC>
