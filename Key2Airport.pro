@@ -10,11 +10,17 @@ CONFIG += c++17
 
 SOURCES += \
     dialogenum.cpp \
+    directinputlistener.cpp \
+    inputlistener.cpp \
     main.cpp \
+    simconnectclient.cpp \
     widget.cpp
 
 HEADERS += \
     dialogenum.h \
+    directinputlistener.h \
+    inputlistener.h \
+    simconnectclient.h \
     widget.h
 
 FORMS += \
@@ -27,6 +33,10 @@ win32 {
     INCLUDEPATH += $$quote($$SIMCONNECT_SDK_DIR/include)
 
     LIBS += -L$$quote($$SIMCONNECT_SDK_DIR/lib) -lSimConnect
+
+    LIBS += -ldinput8 -ldxguid
+
+    QMAKE_POST_LINK += $$QMAKE_COPY $$shell_quote($$shell_path($$SIMCONNECT_SDK_DIR/lib/SimConnect.dll)) $(DESTDIR)
 }
 
 # Default rules for deployment.

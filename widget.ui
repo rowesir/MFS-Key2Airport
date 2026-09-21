@@ -80,11 +80,6 @@
           <pointsize>12</pointsize>
          </font>
         </property>
-        <item>
-         <property name="text">
-          <string>Cessna 172 Cessna Cessna</string>
-         </property>
-        </item>
        </widget>
       </item>
       <item row="0" column="1">
@@ -135,6 +130,18 @@
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="lbInfo">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>32</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>32</height>
+         </size>
+        </property>
         <property name="font">
          <font>
           <pointsize>12</pointsize>
@@ -187,13 +194,13 @@
      <property name="minimumSize">
       <size>
        <width>370</width>
-       <height>100</height>
+       <height>110</height>
       </size>
      </property>
      <property name="maximumSize">
       <size>
        <width>370</width>
-       <height>100</height>
+       <height>110</height>
       </size>
      </property>
      <property name="font">
@@ -219,6 +226,18 @@
       </property>
       <item row="0" column="0" colspan="2">
        <widget class="QLabel" name="lbDetail">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>32</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>32</height>
+         </size>
+        </property>
         <property name="font">
          <font>
           <pointsize>12</pointsize>
@@ -414,12 +433,6 @@
           <property name="segmentStyle">
            <enum>QLCDNumber::SegmentStyle::Flat</enum>
           </property>
-          <property name="value" stdset="0">
-           <double>2500.000000000000000</double>
-          </property>
-          <property name="intValue" stdset="0">
-           <number>2500</number>
-          </property>
          </widget>
         </item>
         <item>
@@ -472,12 +485,6 @@
           </property>
           <property name="segmentStyle">
            <enum>QLCDNumber::SegmentStyle::Flat</enum>
-          </property>
-          <property name="value" stdset="0">
-           <double>-1234.000000000000000</double>
-          </property>
-          <property name="intValue" stdset="0">
-           <number>-1234</number>
           </property>
          </widget>
         </item>

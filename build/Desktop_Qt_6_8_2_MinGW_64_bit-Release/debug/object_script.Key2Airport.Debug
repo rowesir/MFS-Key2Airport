@@ -1,0 +1,12 @@
+debug/dialogenum.o
+debug/directinputlistener.o
+debug/inputlistener.o
+debug/main.o
+debug/simconnectclient.o
+debug/widget.o
+debug/qrc_Icons.o
+debug/moc_dialogenum.o
+debug/moc_directinputlistener.o
+debug/moc_inputlistener.o
+debug/moc_simconnectclient.o
+debug/moc_widget.o

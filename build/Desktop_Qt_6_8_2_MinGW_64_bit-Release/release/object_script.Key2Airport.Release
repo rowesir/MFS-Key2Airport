@@ -1,0 +1,12 @@
+release/dialogenum.o
+release/directinputlistener.o
+release/inputlistener.o
+release/main.o
+release/simconnectclient.o
+release/widget.o
+release/qrc_Icons.o
+release/moc_dialogenum.o
+release/moc_directinputlistener.o
+release/moc_inputlistener.o
+release/moc_simconnectclient.o
+release/moc_widget.o
