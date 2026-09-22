@@ -1,6 +1,6 @@
 # Key2Airport 程序流程
 
-> 版本：v3.1
+> 版本：v3.14
 > 最后更新：2026-09-22
 > 说明：本文档按讨论逐步补充，后续控件逻辑逐节追加。代码实现以本文档为准。
 
@@ -18,8 +18,8 @@
 | --- | --- | --- | --- |
 | `cbConfig` | QComboBox | 空、失能 | 清空所有项；`setEnabled(false)` |
 | `ckbAuto` | QCheckBox | 已勾选 | `setChecked(true)` |
-| `lbInfo` | QLabel | `Standby...` | 初始文本；之后由连接流程改写（`Waiting MFS...` / `Connected` / `Aircraft Loaded` / `Sim Error`），见第 4、5 节 |
-| `pbtnEnum` | QPushButton | 失能 | `setEnabled(false)`。期望是"连接成功后使能"，但**目前没有任何代码打开它**，待实现 |
+| `lbInfo` | QLabel | `Standby...`，黑色 | `Waiting MFS...` 使用橘黄色；`Connected` / `Aircraft Loaded` 使用深绿色；错误不再写入此控件，见第 4、5 节 |
+| `pbtnEnum` | QPushButton | 失能 | 仅在收到 `FLIGHT_START` 后使能；飞行结束、连接丢失或异常时失能。点击后打开 `DialogEnum` 并枚举全部输入事件填入 `TWEnumAll` |
 | `ckbRA` | QCheckBox | 已勾选 | `setChecked(true)` |
 | `ckbLR` | QCheckBox | 已勾选 | `setChecked(true)` |
 | `lcdRA` | QLCDNumber | 显示 `----` | `display("----")` |
@@ -65,20 +65,22 @@ private:
 1. 构造函数末尾调用一次 —— 因此程序启动时两张表已经是空的，满足"程序开始时清空"的要求；
 2. 每次打开窗口前再调用一次 —— 因此每次打开窗口都是干净的两张表。
 
-当前打开方式：**没有任何入口**。早期临时把枚举窗口挂在 `pbtnConnect` 上当调试入口，后来 `pbtnConnect` 改成了连接状态机（第 4 节），这个入口就没了；`pbtnEnum` 是失能的、也没有槽函数。等开始做枚举流程时再把入口接上（大概率是 `pbtnEnum`，连接成功后使能、点击后先 `initUI()` 再 `exec()`）。
+当前打开方式：收到 `FLIGHT_START` 后使能 `pbtnEnum`；点击后先调用 `initUI()` 清空旧数据和枚举缓存，再以模态方式打开 `DialogEnum`，同时向 SDK 线程投递一次 `SimConnect_EnumerateInputEvents` 请求。枚举回包可能分成多个页面，每个页面中的 `SIMCONNECT_INPUT_EVENT_DESCRIPTOR` 都追加到枚举缓存，并按当前过滤条件显示到 `TWEnumAll`；每个 Hash 同时请求 `SimConnect_EnumerateInputEventParams` 获取参数签名，并调用 `SimConnect_SubscribeInputEvent` 开始监听。Dialog 关闭后取消本次打开期间的全部订阅；如果收到 `FLIGHT_END` 或发生 SimConnect 异常，主窗口会主动关闭 Dialog，随后同样取消监听。`TWListem` 不过滤：普通 Hash 每次通知都插入第 0 行；某个 Hash 在最近 1 秒内达到 8 条通知后进入高频折叠，只保留一行并更新 Value / Time；已折叠 Hash 在最近 1 秒内降到 4 条或更少时恢复普通插入，切换时不恢复旧行，当前通知作为新的第 0 行。参数回包到达后按 Hash 更新当前显示行的 Param / Size。
 
-实现约定：`on_pbtnConnect_clicked` 必须声明在类的 `private slots:` 里。`setupUi` 的自动连接是 `QMetaObject::connectSlotsByName`，它只遍历元对象里注册过的方法，普通成员函数不会被连接。
+实现约定：`on_pbtnConnect_clicked` 和 `on_pbtnEnum_clicked` 必须声明在类的 `private slots:` 里。`setupUi` 的自动连接是 `QMetaObject::connectSlotsByName`，它只遍历元对象里注册过的方法，普通成员函数不会被连接。
 
 `initUI()` 的职责：
 
 1. 给 `TWEnumAll` 建立 3 列；
-2. 给 `TWListem` 建立 5 列；
+2. 给 `TWListem` 建立 6 列；
 3. 两张表统一设置：不可编辑、不排序、禁止拖动列、列宽按窗口宽度平均分配（`QHeaderView::Stretch`）；
-4. 清空两张表的所有行（`setRowCount(0)`）。
+4. 清空两张表的所有行（`setRowCount(0)`）；
+5. 清空 `TWEnumAll` 的枚举结果缓存，并将 `leFiltra` 清空；
+6. 限制 `leFiltra` 只能输入 20 个以内的可打印非空白 ASCII 字符。
 
-建列部分重复调用无害（会被覆盖），所以构造函数与打开前调用同一个函数即可。
+建列部分重复调用无害（会被覆盖），所以构造函数与打开前调用同一个函数即可。枚举结果缓存只服务于当前一次枚举，随 `initUI()` 清空。
 
-不属于 `initUI()` 的内容：hash → param 这类**纯数据缓存**不随界面清空，否则每次开关窗口都要重新查询参数签名。
+参数签名缓存属于当前 Dialog 的本次枚举数据，随 `initUI()` 清空；每次打开窗口都会重新按当前枚举结果请求，避免沿用上一架飞机的数据。
 
 #### 1.2.1 TWEnumAll 列定义
 
@@ -92,6 +94,8 @@ private:
 
 3 列，与结构体三个字段一一对应。
 
+`leFiltra` 用于实时过滤 `TWEnumAll`：输入为空时显示缓存中的全部行；输入非空时只显示 `Name` 包含完整过滤字符串的行，匹配忽略大小写。每次文本变化都会立即重建表格，不设置额外的过滤按钮。过滤框最多 20 个字符，空格及其他空白字符、非 ASCII 字符均不允许输入。
+
 #### 1.2.2 TWListem 列定义
 
 用途：显示监听期间收到的每一条 `SIMCONNECT_RECV_SUBSCRIBE_INPUT_EVENT`。
@@ -100,15 +104,16 @@ private:
 | --- | --- | --- | --- |
 | 0 | Hash | 结构体 `::Hash`（UINT64） | 收到通知时立即填充 |
 | 1 | eType | 结构体 `::eType` | 收到通知时立即填充 |
-| 2 | Value | 结构体 `::Value`（长度由 `eType` 决定） | 收到通知时立即填充 |
+| 2 | Value | 结构体 `::Value`（长度由 `eType` 决定） | 普通 Hash 每条通知填充新行；高频折叠 Hash 更新原行 |
 | 3 | Param | `SimConnect_EnumerateInputEventParams` 返回的签名字符串，如 `;FLOAT64` | 回调返回后补填 |
 | 4 | Size | 由 Param 换算出的字节数，即将来 `SetInputEvent` 的 `cbUnitSize`（如 `;FLOAT64` → 8） | 回调返回后补填 |
+| 5 | Time | 程序收到该 Hash 最新监听通知的本地时间 | 每次通知到达时更新，格式 `HH:mm:ss` |
 
-5 列。
+6 列。
 
-Param / Size 是异步的：`EnumerateInputEventParams` 是"发请求 → 等回调"，因此一行的插入分两阶段完成 —— 先插入 Hash / eType / Value 三列，回调到了再补 Param / Size。参数按 hash 缓存，同一个 hash 只有第一条触发查询，后面的行直接取缓存填充。
+Param / Size 是异步的：`EnumerateInputEventParams` 是"发请求 → 等回调"，因此一行的插入分两阶段完成 —— 先插入 Hash / eType / Value / Time，回调到了再补 Param / Size。参数按 Hash 缓存，同一个 Hash 只请求一次，后续通知直接取缓存填充；如果通知先到，则参数回包到达后更新该 Hash 的当前显示行。
 
-已知边界情况：签名返回空串的事件（例如部分除冰开关），Size 会算成 0，但它实际仍需要发一个 double。这属于后续发送逻辑要处理的问题，不在初始化范围内。
+已知边界情况：部分事件（例如部分除冰开关）的签名可能返回空串；如果该 Hash 的 `eType` 是 `DOUBLE`，则按 8 字节兜底，否则 Size 保持未知（-1），避免伪造不确定的字符串长度。
 
 #### 1.2.3 两张表的通用行为
 
@@ -129,18 +134,72 @@ void addEnumAll(const QString &name, quint64 hash, const QString &eType);
 // TWListem：插入到第 0 行
 void addListen(quint64 hash, const QString &eType, const QString &value,
                const QString &param, int size);
+
+// 参数回包：缓存并回填 TWListem 中相同 Hash 的已有行
+void setEnumParam(quint64 hash, const QString &param, int size);
 ```
 
-共两个接口，一次把一行写完。
+`addEnumAll` / `addListen` 负责写入行，`setEnumParam` 负责异步回填参数列。
 
 插入方向：
 
 - `TWEnumAll` 往**尾部**添加（`insertRow(rowCount())`），枚举结果按到达顺序往下排。
-- `TWListem` 往**头部**添加（`insertRow(0)`），最新一条永远在最上面。同一个 hash 反复变化就产生多行：不去重、不合并、不更新已有行。
+- `TWListem` 根据 Hash 的通知频率自适应显示：普通 Hash 每次往**头部**添加（`insertRow(0)`）；最近 1 秒达到 8 条的 Hash 进入折叠，已有同 Hash 行合并为一行，后续只更新 Value、Time、eType、Param 和 Size；折叠 Hash 最近 1 秒降到 4 条或更少时恢复逐条插入。恢复时不恢复折叠前的旧行，只从触发恢复的最新通知开始。
 
-Param / Size 的来源：调用方按 hash 缓存查询（同一个 hash 只查一次），查到后随通知一起传给 `addListen`。参数用空串、size 用 -1 表示"本次还没查到"，该格留空；之后同一个 hash 的行都会有值。
+Param / Size 的来源：`SIMCONNECT_RECV_SUBSCRIBE_INPUT_EVENT` 通知只提供 Hash、eType 和 Value；参数签名由 `SimConnect_EnumerateInputEventParams` 返回。Param 原样显示，Size 按签名逐项计算：`FLOAT64` 为 8 字节，`char[N]` 为 N 字节，多个参数取总和；无法识别的签名用 -1 表示未知。
 
 参数类型：接口只收 `name / hash / eType / value / param / size` 这些普通字段，不收 SimConnect 结构体，这样 `DialogEnum` 不必依赖 SimConnect 头文件。
+
+### 1.4 InputEvent 的 Inc / Dec 分支限制（旋钮绑定重点）
+
+这是后续实现按键绑定旋钮时必须注意的边界条件。
+
+#### 1.4.1 DevMode 中看到的层级不等于 SimConnect 枚举结果
+
+实测 SF50 的开发者模式中，`SF50_AUTOPILOT_HEADING` 显示为一个父级 InputEvent，内部包含：
+
+```text
+SF50_AUTOPILOT_HEADING
+├── SF50_AUTOPILOT_HEADING_Inc
+├── SF50_AUTOPILOT_HEADING_Dec
+├── SF50_AUTOPILOT_HEADING_Set
+├── HEADING_BUG_INC
+└── HEADING_BUG_DEC
+```
+
+其中 `HEADING_BUG_INC` 和 `HEADING_BUG_DEC` 位于父事件的 `[Inc]` / `[Dec]` 分支下，各自显示一个 `Number` 参数 `1.00`。这个 `1.00` 是执行该分支时传给行为逻辑的参数，不是 `SIMCONNECT_RECV_SUBSCRIBE_INPUT_EVENT::Value` 的左右方向值。
+
+SimConnect 枚举和监听到的是父事件：
+
+```text
+Name:  SF50_AUTOPILOT_HEADING
+Hash:  父事件 Hash
+Value: 0
+```
+
+点击 DevMode 中的 `HEADING_BUG_INC` 或 `HEADING_BUG_DEC` 可以改变旋钮，但不会产生新的 Hash；监听回包中的 Value 仍可能是 0。这不是当前 `DOUBLE` 解析错误。官方 `SIMCONNECT_RECV_SUBSCRIBE_INPUT_EVENT` 的读取方式是把 `Value` 地址转换成 `double*` / 字符串指针；当前代码用 `memcpy` 从 `&inputEvent->Value` 读取，与官方方式等价。油门等事件能读出连续的 `0` 到 `100` 小数，也验证了这一点。
+
+#### 1.4.2 当前 SimConnect API 不暴露 Inc / Dec 的独立 Hash
+
+`SimConnect_EnumerateInputEvents` 只返回当前飞机对外暴露的父级 InputEvent 及其 Hash，不返回开发者模式中的 `_Inc`、`_Dec`、`_Toggle`、`_On`、`_Off` 等内部分支。`SimConnect_EnumerateInputEventParams` 和 `SimConnect_GetInputEvent` 都要求调用方已经拥有 Hash，不能按隐藏分支名称反查 Hash。即使自行对名称计算 CRC，也不能因此得到一个可供 `SetInputEvent` 使用的合法独立事件。
+
+官方资料明确记录了这个限制：
+
+- [Input Events API](https://docs.flightsimulator.com/msfs2024/html/6_Programming_APIs/SimConnect/API_Reference/InputEvents/Input_Events.htm)：`EnumerateInputEvents` 返回 InputEvent 及 Hash，`SetInputEvent` 设置指定父级 InputEvent 的值；
+- [Asobo：EnumerateInputEvents 不返回 Inc / Dec](https://devsupport.flightsimulator.com/t/enumerateinputevents-doesnt-return-inc-dec-toggle-on-and-off-events/6598)：官方确认当前版本只暴露类似 `Set` 的事件，`Inc` / `Dec` 尚未通过该 API 暴露；
+- [Asobo：Send B Events](https://devsupport.flightsimulator.com/t/send-b-events/8501)：官方确认当前 SimConnect 不直接暴露 `Inc`、`Dec` 或其他自定义 B Event 分支。
+
+#### 1.4.3 对旋钮绑定的影响
+
+当前 `Hash + Param + Value + Size` 方案可以直接支持按钮、开关、油门、推杆以及能够通过 Value 表达方向或位置的事件，但不能从 SF50 这种父级事件通知中推断旋钮左右方向。对同一个父 Hash，`Value=0` 不能区分 `Inc` 和 `Dec`。
+
+后续发送层需要区分三种情况：
+
+1. **数值型 Set 事件**：使用 `SimConnect_SetInputEvent(Hash, cbUnitSize, Value)`；
+2. **传统 K / Sim Event**：如果 `HEADING_BUG_INC` / `HEADING_BUG_DEC` 实际是传统 Sim Event，可以按事件名称映射并使用 `SimConnect_TransmitClientEvent`，不需要 InputEvent Hash；
+3. **B Event 的 Inc / Dec 分支**：需要通过 WASM / Gauge API 执行类似 `1 (>B:SF50_AUTOPILOT_HEADING_Inc)` 和 `1 (>B:SF50_AUTOPILOT_HEADING_Dec)` 的 RPN，当前纯 SimConnect 接口不能直接完成。
+
+因此，旋钮绑定数据不能只保存父级 Hash，还需要保存 `Set / Inc / Dec` 操作类型以及对应的发送通道。当前 DialogEnum 的监听结果只能作为父级 InputEvent 的发现和参数分析工具，不能保证自动发现所有可执行的旋钮方向分支。
 
 ---
 
@@ -162,6 +221,7 @@ Param / Size 的来源：调用方按 hash 缓存查询（同一个 hash 只查�
 - 为什么不把 SDK 和输入放一个线程：模拟器加载航班时 SimConnect 调用可能阻塞数秒，会把按键检测一起拖住（键盘钩子被拖住还可能被系统摘掉）。用定时器也解决不了，定时器只是换个时机阻塞，仍在同一个线程上。
 - 输入线程将来要发送事件时，只把请求用信号投递给 SDK 线程，自己不等结果。
 - **跨线程调用必须排队**：给另一个线程里的对象发请求，要用信号槽或 `QMetaObject::invokeMethod(..., Qt::QueuedConnection)`，不能直接调它的方法。直接调会在**调用者**线程里执行，函数里创建的子对象（`QTimer`、`QWinEventNotifier` 之类）会挂到错误的线程上——Qt 会报 `Cannot create children for a parent that is in a different thread`，而且那些对象之后会在错误的线程上工作（踩过一次：SDK 的重试和派发实际跑到了主线程）。
+- **线程退出清理**：`InputListener`、`DirectInputListener` 和 `SimConnectClient` 都在所属工作线程中通过 `QThread::finished` 连接 `deleteLater()`，主线程不直接 `delete` 它们。关闭时先在 SDK 线程执行断开，再停止并等待线程，避免工作线程创建的 `QTimer` / `QWinEventNotifier` 被主线程析构。
 
 ### 2.3 键盘
 
@@ -278,6 +338,8 @@ POV 帽：枚举 `DIDFT_POV` 对象，按序号读 `rgdwPOV[i]`，把 1/100 度�
 
 类 `SimConnectClient`，跑在**自己的 SDK 线程**里（与输入线程分开，见 2.2）。以后的枚举、飞机识别、事件发送都放这个线程。
 
+飞行状态使用 MSFS 2024 的 Flow Event API，不使用 `Sim` / `SimStart` / `SimStop` 推断是否处于真正飞行。连接成功后调用 `SimConnect_SubscribeToFlowEvent`，在 `SIMCONNECT_RECV_ID_FLOW_EVENT` 中处理 `SIMCONNECT_FLOW_EVENT`。参考：[SimConnect_SubscribeToFlowEvent](https://docs.flightsimulator.com/msfs2024/html/6_Programming_APIs/SimConnect/API_Reference/Events_And_Data/SimConnect_SubscribeToFlowEvent.htm)、[SIMCONNECT_FLOW_EVENT](https://docs.flightsimulator.com/msfs2024/html/6_Programming_APIs/SimConnect/API_Reference/Structures_And_Enumerations/SIMCONNECT_FLOW_EVENT.htm)、[SIMCONNECT_RECV_FLOW_EVENT](https://docs.flightsimulator.com/msfs2024/html/6_Programming_APIs/SimConnect/API_Reference/Structures_And_Enumerations/SIMCONNECT_RECV_FLOW_EVENT.htm)。
+
 连接：
 
 - `SimConnect_Open(&h, "Key2Airport", nullptr, 0, hEvent, SIMCONNECT_OPEN_CONFIGINDEX_LOCAL)`
@@ -294,16 +356,21 @@ POV 帽：枚举 `DIDFT_POV` 对象，按序号读 `rgdwPOV[i]`，把 1/100 度�
 
 ### 5.1 状态通知
 
-四个状态都有对应的机制：
+连接和飞行状态的判断分为两层：Flow Event 判断是否真正进入/退出飞行，`AircraftLoaded` 只作为飞行中的飞机加载通知，不能单独驱动界面状态。
 
 | 状态 | SimConnect 机制 | 本工程的信号 |
 | --- | --- | --- |
 | 已连接 | `SimConnect_Open` 成功 | `connected()` |
-| 已加载飞机 | `SimConnect_SubscribeToSystemEvent(..., "AircraftLoaded")`，回包是 `SIMCONNECT_RECV_ID_EVENT_FILENAME`，带 `szFileName` | `aircraftLoaded(QString)` |
-| 模拟停止（退出飞行的瞬间） | `Sim` 的 `dwData = 0`，回包是 `SIMCONNECT_RECV_ID_EVENT` | `flightEnded()` |
-| 异常 / 错误退出 | `SIMCONNECT_RECV_ID_EXCEPTION`（`dwException` 是错误码）；连接被结束是 `SIMCONNECT_RECV_ID_QUIT` | `simError(quint32)` / `disconnected()` |
+| 真正飞行开始 | `SimConnect_SubscribeToFlowEvent`，收到 `SIMCONNECT_FLOW_EVENT_FLIGHT_START` | `flightStarted()`，界面显示 `Aircraft Loaded` |
+| 飞行中飞机加载 | `AircraftLoaded`，回包是 `SIMCONNECT_RECV_ID_EVENT_FILENAME`，带 `szFileName`；仅在已进入飞行后转发 | `aircraftLoaded(QString)` |
+| 飞行结束 | Flow Event 的 `SIMCONNECT_FLOW_EVENT_FLIGHT_END` 或 `SIMCONNECT_FLOW_EVENT_BACK_TO_MAIN_MENU` | `flightEnded()`，界面回到 `Connected` |
+| 异常 / 错误退出 | `SIMCONNECT_RECV_ID_EXCEPTION`（`dwException` 是错误码）；连接被结束是 `SIMCONNECT_RECV_ID_QUIT` | `simError(quint32)`，主线程弹出英文错误框；用户确认后自动断开 |
 
-连接成功后会立刻订阅 `AircraftLoaded` 和 `Sim`。订阅 `Sim` 时系统会**立刻回一次当前状态**。"连不上"这个状态不需要单独通知，界面停在 `Waiting MFS...` 就是在重试。
+连接成功后会立刻订阅 `AircraftLoaded` 和 Flow Event。主菜单预览产生的 `AircraftLoaded` 会被忽略；收到 `FLIGHT_START` 后才把界面切到 `Aircraft Loaded`。如果 `AircraftLoaded` 与 `FLIGHT_START` 的先后顺序发生变化，飞行开始事件仍然作为界面状态的最终判据。
+
+**连接时机边界（当前功能限制）**：`FLIGHT_START` / `FLIGHT_END` 是发生时主动推送的事件，不是可以随时查询的持久状态。SimConnect 不会因为客户端晚加入而补发已经发生的 Flow Event。因此，如果程序在 `FLIGHT_START` 发生后才点击连接，客户端无法收到本次进入飞行的通知，`flightActive` 会保持为 `false`，界面会显示 `Connected`，而不是 `Aircraft Loaded`。`SimConnect_RequestSystemState("Sim")`、`AircraftLoaded` 和 `FlightLoaded` 等主动查询结果无法稳定区分真正飞行与主菜单预览，所以当前不将它们作为权威判据。当前功能范围是：应在进入飞行前连接；连接期间可以准确接收后续的进入和退出飞行事件。中途连接场景暂不处理。
+
+`FlightLoaded`、`FLT_LOAD`、`FLT_LOADED` 只表示 `.flt` 文件加载，不表示飞行状态；生涯模式的跳过、传送和剧情流程也不能当作退出飞行。"连不上"这个状态不需要单独通知，界面停在 `Waiting MFS...` 就是在重试。
 
 **实测结论（2026-09-22，事件探针）**：主菜单自己也在跑一个模拟，并且会加载一次预览飞机。典型序列：
 
@@ -317,14 +384,16 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 由此可知：
 
 - **`Sim` 不能用来判断"在飞行中"**——退出飞行 0.8 秒后它会因为菜单预览又变回 1；
-- **`AircraftLoaded` 在主菜单也会发**（刚进游戏、还没进正式飞行就会发一次）。
+- **`AircraftLoaded` 在主菜单也会发**（刚进游戏、还没进正式飞行就会发一次）；
+- 官方新增的 Flow Event 提供了专门的 `FLIGHT_START`、`FLIGHT_END` 和 `BACK_TO_MAIN_MENU` 边界事件。
 
-当前实现是最简单的一版，尚未处理上述两点：
+当前实现采用 Flow Event 作为飞行状态边界：
 
-- `AircraftLoaded` → 界面 `Aircraft Loaded`；
-- `Sim` 回 0 → 界面 `Connected`。
+- `FLIGHT_START` → 界面 `Aircraft Loaded`；
+- `FLIGHT_END` / `BACK_TO_MAIN_MENU` → 界面 `Connected`；
+- 飞行外收到的 `AircraftLoaded` 不再更新界面。
 
-**所以主菜单（以及刚进游戏时）也会显示 `Aircraft Loaded`——这是已知问题，见第 7 节。** `SimStart` / `SimStop` 也在飞行边界触发（实测进入飞行时先 `SimStop=0` 再 `SimStart=0`），但成对出现且方向不直观，暂时不用它们做判据。
+`SimStart` / `SimStop` 仍可能在加载、重置等过程中成对出现，因此不作为飞行状态判据。
 
 重连策略：
 
@@ -333,14 +402,14 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 | `SimConnect_Open` 返回 `E_FAIL`（模拟器没运行） | 正常，1 秒后继续重试，界面停在 `Waiting MFS...` |
 | `SimConnect_Open` 返回其他错误（异常情况） | 停止重试，界面复位回 `Standby...` 并显示错误 |
 | `SIMCONNECT_RECV_ID_QUIT`（模拟器退出、连接断开） | **自动重连**：关掉当前句柄但保持重试，界面停在 `Waiting MFS...`（按钮仍是 `Disconn`），模拟器重新起来后自动连上，并自动重新订阅飞机 / 飞行事件 |
-| `SIMCONNECT_RECV_ID_EXCEPTION` | 只把错误码报给界面，**不**断开连接——单次调用报错不代表连接坏了 |
+| `SIMCONNECT_RECV_ID_EXCEPTION` | SDK 线程先把错误码报给界面，不立即断开；用户确认错误框后由主线程执行断开操作 |
 | 用户手点 `Disconn` | 停止重试，界面复位回 `Standby...` |
 
 只有两种情况会停止重试：用户手动断开，以及 `SimConnect_Open` 返回非 `E_FAIL` 的异常错误。
 
 还没接、但以后可能用得上的系统事件：`SimStart` / `SimStop`（已在探针里观察过，成对触发）、`Pause` / `Pause_EX1`（暂停 / 恢复，`dwData` 含义未整理）。
 
-界面文案**待定**，现在都是占位：`connected` → `Connected`、`aircraftLoaded` → `Aircraft Loaded`、`simError` → `Sim Error`。
+错误处理：`onSimError` 弹出标题为 `SimConnect Error` 的英文错误框，显示错误描述以及十进制 / 十六进制错误码；用户点击确定后执行与再次点击 `pbtnConnect` 相同的断开操作。`onSimError` 不修改 `lbInfo`，错误状态不显示在主界面状态文本中。
 
 `aircraftLoaded` 信号里带的是 `szFileName` 原始字符串（飞机配置文件的路径）。要显示成机型号而不是路径的话，得先看这个字符串实际长什么样，或者改成读 `TITLE` / `ATC MODEL` 这类 SimVar。
 
@@ -351,24 +420,20 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 ## 6. 待补充
 
 - `pbtnFolder` 的行为（初始状态、点击后做什么）
-- `pbtnEnum` 的槽函数：现在既失能又没有槽；枚举窗口目前**没有任何入口能打开**
-- 枚举流程（把 `EnumerateInputEvents` 的结果填进 `TWEnumAll`）与监听流程（把订阅通知填进 `TWListem`）
 - 飞机识别：现在只有 `AircraftLoaded` 的文件路径，要显示机型 / 做按机型匹配，得读 `TITLE`、`ATC MODEL` 这类 SimVar
-- 事件发送流程（按键 → 匹配 → `SetInputEvent`）
+- 事件发送流程（按键 → 匹配 → `SetInputEvent`）；旋钮的 `Inc / Dec` 分支受第 1.4 节限制，不能假定所有事件都能通过父 Hash 发送
 - 配置文件的读写与按机型切换
 - 界面文案定稿：`Connected` / `Aircraft Loaded` / `Sim Error` 目前都是占位
 
 ---
 
-## 7. 已知问题（待解决）
+## 7. 已知问题
 
 ### 7.1 主菜单被当成"飞机已加载"
 
-- **症状**：进了游戏还停在主菜单、没进正式飞行，`lbInfo` 就显示 `Aircraft Loaded`；结束飞行退回主菜单后也会保持 `Aircraft Loaded`。
-- **原因**：主菜单自身也在跑模拟并加载预览飞机，因此会发 `AircraftLoaded`（探针日志里 `87.89s` 那条就是菜单预览，当时前面并没有任何 `FlightLoaded`）。
-- **当前状态**：**未解决**。代码现在是最简单规则（收到 `AircraftLoaded` 就显示），所以主菜单也会显示。
-- **为什么先不猜着修**：能区分"菜单预览加载"和"真实飞行加载"的判据还没确定。日志里那条 `FlightLoaded(...\CustomFlight\CustomFlight.FLT)` 到底是"开始自由飞行"还是"回到主菜单"尚未确认——两种解释会推出**相反**的判断逻辑，猜错就会把"进入飞行显示 `Aircraft Loaded`"这个已经好用的行为弄坏（2026-09-22 曾按"回菜单"实现过一版，因无法确认而撤回）。
-- **下一步**：用事件探针（`probe_events.exe`）分阶段抓一次日志——主菜单停 30 秒 → 进入飞行停 30 秒 → 退回主菜单停 30 秒 → 退出。阶段边界清楚之后，就能一次性确定 `FlightLoaded` 的含义以及 `Sim` / `SimStart` / `SimStop` / `Pause` 在三个阶段里的表现，再据此定规则。
+- **原因**：主菜单自身也在跑模拟并加载预览飞机，因此会发 `AircraftLoaded`。官方文档也说明 `AircraftLoaded` 只是飞机飞行动力学文件变化通知，不是“飞行已开始”通知。
+- **处理方式**：改用 MSFS 2024 Flow Event：`FLIGHT_START` 进入飞行状态，`FLIGHT_END` 或 `BACK_TO_MAIN_MENU` 退出飞行状态；只有真正进入飞行后，`AircraftLoaded` 才会继续转发。
+- **当前状态**：已在代码中处理。`Sim`、`SimStart`、`SimStop`、`FlightLoaded` 均不再作为飞行状态判据。
 
 ---
 
@@ -406,3 +471,16 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 | 2026-09-22 | v2.9 | 与代码逐条核对并修正：枚举窗口入口已失效、`lbInfo`/`pbtnEnum` 初始状态说明、SDK 独立线程、自动重连、`Sim` 已接入、待补充清单重写 |
 | 2026-09-22 | v3.0 | 用事件探针实测更正"退出飞行"判定：菜单自身也会跑模拟并重发 `AircraftLoaded`，改用 `FlightLoaded`(CustomFlight) 识别菜单、`Sim`=0 清除菜单模式；信号 `simRunningChanged` 改为 `flightEnded` |
 | 2026-09-22 | v3.1 | 撤回 v3.0 里基于 `FlightLoaded` 的菜单判据（依据未确认，猜反会破坏"进入飞行"）；新增第 7 节记录未解决的"主菜单被当成飞机已加载"问题与验证方案 |
+| 2026-09-22 | v3.2 | 接入 MSFS 2024 Flow Event：使用 `FLIGHT_START`、`FLIGHT_END`、`BACK_TO_MAIN_MENU` 判断真正飞行边界；主菜单的 `AircraftLoaded` 不再触发 `Aircraft Loaded` |
+| 2026-09-22 | v3.3 | 增加 `lbInfo` 状态颜色；`onSimError` 改为英文错误框并显示错误码，确认后自动断开，不再写入 `lbInfo` |
+| 2026-09-22 | v3.4 | 明确连接时机边界：Flow Event 不会补发，飞行开始后才连接时无法恢复当前飞行状态；中途连接暂不处理 |
+| 2026-09-22 | v3.5 | `FLIGHT_START` 后使能 `pbtnEnum`；点击后枚举全部输入事件并填入 `TWEnumAll`；飞行结束、断开或异常时失能 |
+| 2026-09-22 | v3.6 | `DialogEnum` 缓存 `TWEnumAll` 的枚举结果；新增 `leFiltra` 实时按 Name 过滤（忽略大小写），并限制为最多 20 个非空白可打印 ASCII 字符 |
+| 2026-09-22 | v3.7 | 打开 `DialogEnum` 时按枚举结果订阅全部输入事件；通知填入 `TWListem` 第 0 行，关闭窗口后取消订阅 |
+| 2026-09-22 | v3.8 | 为每个 Hash 请求并解析输入事件参数签名；按 `FLOAT64` / `char[N]` 计算 Size，并异步回填 `TWListem` 的 Param / Size |
+| 2026-09-22 | v3.9 | 修复工作线程对象由主线程析构导致的 Qt 定时器跨线程清理警告；改为所属线程 `deleteLater()` 并在退出前执行 SDK 断开 |
+| 2026-09-22 | v3.10 | `TWListem` 按 Hash 去重：新 Hash 插入第 0 行，相同 Hash 后续只更新原行 |
+| 2026-09-22 | v3.11 | 主窗口和 `DialogEnum` 默认置顶；`TWListem` 新增 `Time` 列，显示每个 Hash 最新通知时间（精确到秒） |
+| 2026-09-22 | v3.12 | `TWListem` 按 Hash 通知频率自适应折叠：1 秒内达到 8 条时折叠，降到 4 条或更少时恢复逐条插入 |
+| 2026-09-22 | v3.13 | `FLIGHT_END` 或 `onSimError` 发生时主动关闭 `DialogEnum`，并沿用模态返回后的流程取消输入事件监听 |
+| 2026-09-22 | v3.14 | 记录 SF50 旋钮限制：父级 InputEvent 的 Hash / Value 不包含 `Inc` / `Dec` 方向，当前 SimConnect 无法枚举或反查这些内部分支 Hash |

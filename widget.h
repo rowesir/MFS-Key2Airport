@@ -15,6 +15,8 @@ QT_BEGIN_NAMESPACE
 class QThread;
 QT_END_NAMESPACE
 
+class QCloseEvent;
+
 QT_BEGIN_NAMESPACE
 namespace Ui
 {
@@ -32,9 +34,11 @@ class Widget : public QWidget
 
   protected:
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    void closeEvent(QCloseEvent *event) override;
 
   private slots:
     void on_pbtnConnect_clicked();
+    void on_pbtnEnum_clicked();
 
     void onKeyPressed(const QString &name);
 
@@ -49,6 +53,8 @@ class Widget : public QWidget
     void onSimDisconnected();
 
     void onSimConnectionLost();
+
+    void onFlightStarted();
 
     void onAircraftLoaded(const QString &file);
 
@@ -72,7 +78,9 @@ class Widget : public QWidget
     };
 
     void initUI();
+    void setInfoText(const QString &text, const QString &color);
     void resetConnectionUi();
+    bool confirmFlightExit(const QString &action);
     QList<QWidget *> guardedControls() const;
 
     Ui::Widget *ui;
@@ -84,5 +92,6 @@ class Widget : public QWidget
     SimConnectClient *simClient              = nullptr;
     QTimer *timerDetail                      = nullptr;
     bool connected                           = false;
+    bool flightActive                        = false;
 };
 #endif // WIDGET_H

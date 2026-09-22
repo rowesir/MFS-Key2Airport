@@ -2,13 +2,16 @@
 #include "ui_widget.h"
 
 #include <QAbstractButton>
+#include <QCloseEvent>
 #include <QComboBox>
 #include <QIcon>
+#include <QMessageBox>
 #include <QThread>
 
 Widget::Widget(QWidget *parent) : QWidget(parent), ui(new Ui::Widget), dialogEnum(this)
 {
     ui->setupUi(this);
+    setWindowFlag(Qt::WindowStaysOnTopHint, true);
 
     const HWND window = reinterpret_cast<HWND>(winId());
 
@@ -20,6 +23,10 @@ Widget::Widget(QWidget *parent) : QWidget(parent), ui(new Ui::Widget), dialogEnu
     inputListener->moveToThread(inputThread);
     directInputListener->moveToThread(inputThread);
     simClient->moveToThread(simThread);
+
+    connect(inputThread, &QThread::finished, inputListener, &QObject::deleteLater);
+    connect(inputThread, &QThread::finished, directInputListener, &QObject::deleteLater);
+    connect(simThread, &QThread::finished, simClient, &QObject::deleteLater);
 
     connect(inputThread, &QThread::started, inputListener, [listener = inputListener]() { listener->start(); });
     connect(inputThread, &QThread::started, directInputListener,
@@ -34,8 +41,12 @@ Widget::Widget(QWidget *parent) : QWidget(parent), ui(new Ui::Widget), dialogEnu
     connect(simClient, &SimConnectClient::connected, this, &Widget::onSimConnected);
     connect(simClient, &SimConnectClient::disconnected, this, &Widget::onSimDisconnected);
     connect(simClient, &SimConnectClient::connectionLost, this, &Widget::onSimConnectionLost);
+    connect(simClient, &SimConnectClient::flightStarted, this, &Widget::onFlightStarted);
     connect(simClient, &SimConnectClient::aircraftLoaded, this, &Widget::onAircraftLoaded);
     connect(simClient, &SimConnectClient::flightEnded, this, &Widget::onFlightEnded);
+    connect(simClient, &SimConnectClient::inputEventEnumerated, &dialogEnum, &DialogEnum::addEnumAll);
+    connect(simClient, &SimConnectClient::inputEventParamsEnumerated, &dialogEnum, &DialogEnum::setEnumParam);
+    connect(simClient, &SimConnectClient::inputEventReceived, &dialogEnum, &DialogEnum::addListen);
     connect(simClient, &SimConnectClient::simError, this, &Widget::onSimError);
 
     initUI();
@@ -51,13 +62,13 @@ Widget::~Widget()
 
     if (simThread)
     {
+        if (simClient && simThread->isRunning()) {
+            QMetaObject::invokeMethod(simClient, &SimConnectClient::disconnectFromSim,
+                                      Qt::BlockingQueuedConnection);
+        }
         simThread->quit();
         simThread->wait();
     }
-
-    delete inputListener;
-    delete directInputListener;
-    delete simClient;
     delete ui;
 }
 
@@ -74,6 +85,17 @@ bool Widget::nativeEvent(const QByteArray &eventType, void *message, qintptr *re
     return false;
 }
 
+void Widget::closeEvent(QCloseEvent *event)
+{
+    if (connected && flightActive && !confirmFlightExit(QStringLiteral("close the application")))
+    {
+        event->ignore();
+        return;
+    }
+
+    event->accept();
+}
+
 void Widget::initUI()
 {
     ui->cbConfig->clear();
@@ -81,7 +103,7 @@ void Widget::initUI()
 
     ui->ckbAuto->setChecked(true);
 
-    ui->lbInfo->setText(QStringLiteral("Standby..."));
+    setInfoText(QStringLiteral("Standby..."), QStringLiteral("#000000"));
 
     ui->pbtnEnum->setEnabled(false);
 
@@ -109,8 +131,9 @@ void Widget::on_pbtnConnect_clicked()
 
         guard.keepDisabled(ui->cbConfig);
         guard.keepDisabled(ui->ckbAuto);
+        ui->pbtnEnum->setEnabled(false);
 
-        ui->lbInfo->setText(QStringLiteral("Waiting MFS..."));
+        setInfoText(QStringLiteral("Waiting MFS..."), QStringLiteral("#E68A00"));
         ui->pbtnConnect->setText(QStringLiteral("Disconn"));
         ui->pbtnConnect->setIcon(QIcon(QStringLiteral(":/Resoure/CoilRed.png")));
 
@@ -118,7 +141,11 @@ void Widget::on_pbtnConnect_clicked()
     }
     else
     {
-        connected = false;
+        if (flightActive && !confirmFlightExit(QStringLiteral("disconnect"))) return;
+
+        guard.keepDisabled(ui->pbtnEnum);
+        connected    = false;
+        flightActive = false;
 
         resetConnectionUi();
 
@@ -126,39 +153,115 @@ void Widget::on_pbtnConnect_clicked()
     }
 }
 
+void Widget::on_pbtnEnum_clicked()
+{
+    {
+        ControlGuard guard(this);
+
+        dialogEnum.initUI();
+        QMetaObject::invokeMethod(simClient, &SimConnectClient::enumerateInputEvents, Qt::QueuedConnection);
+        dialogEnum.exec();
+        QMetaObject::invokeMethod(simClient, &SimConnectClient::stopInputEventListening, Qt::QueuedConnection);
+    }
+
+    ui->pbtnEnum->setEnabled(flightActive);
+}
+
 void Widget::resetConnectionUi()
 {
     ui->ckbAuto->setEnabled(true);
+    ui->pbtnEnum->setEnabled(false);
 
-    ui->lbInfo->setText(QStringLiteral("Standby..."));
+    setInfoText(QStringLiteral("Standby..."), QStringLiteral("#000000"));
     ui->pbtnConnect->setText(QStringLiteral("Connect"));
     ui->pbtnConnect->setIcon(QIcon(QStringLiteral(":/Resoure/CoilBalck.png")));
 }
 
-void Widget::onSimConnected() { ui->lbInfo->setText(QStringLiteral("Connected")); }
+void Widget::setInfoText(const QString &text, const QString &color)
+{
+    ui->lbInfo->setText(text);
+    ui->lbInfo->setStyleSheet(QStringLiteral("color: %1;").arg(color));
+}
+
+void Widget::onSimConnected()
+{
+    ui->pbtnEnum->setEnabled(false);
+    setInfoText(QStringLiteral("Connected"), QStringLiteral("#006400"));
+}
 
 void Widget::onSimDisconnected()
 {
-    connected = false;
+    connected    = false;
+    flightActive = false;
     resetConnectionUi();
 }
 
-void Widget::onSimConnectionLost() { ui->lbInfo->setText(QStringLiteral("Waiting MFS...")); }
+void Widget::onSimConnectionLost()
+{
+    flightActive = false;
+    ui->pbtnEnum->setEnabled(false);
+    setInfoText(QStringLiteral("Waiting MFS..."), QStringLiteral("#E68A00"));
+}
+
+void Widget::onFlightStarted()
+{
+    flightActive = true;
+    ui->pbtnEnum->setEnabled(true);
+    setInfoText(QStringLiteral("Aircraft Loaded"), QStringLiteral("#006400"));
+}
 
 void Widget::onAircraftLoaded(const QString &file)
 {
     Q_UNUSED(file)
 
-    ui->lbInfo->setText(QStringLiteral("Aircraft Loaded"));
+    setInfoText(QStringLiteral("Aircraft Loaded"), QStringLiteral("#006400"));
 }
 
-void Widget::onFlightEnded() { ui->lbInfo->setText(QStringLiteral("Connected")); }
+void Widget::onFlightEnded()
+{
+    if (dialogEnum.isVisible())
+        dialogEnum.reject();
+
+    flightActive = false;
+    ui->pbtnEnum->setEnabled(false);
+    setInfoText(QStringLiteral("Connected"), QStringLiteral("#006400"));
+}
+
+bool Widget::confirmFlightExit(const QString &action)
+{
+    const QString message =
+        QStringLiteral("You are currently in a flight.\n"
+                       "If you %1 now, the next connection must be made before entering a flight.\n\n"
+                       "Do you want to continue?")
+            .arg(action);
+
+    return QMessageBox::question(this, QStringLiteral("Confirm"), message, QMessageBox::Yes | QMessageBox::No,
+                                 QMessageBox::No) == QMessageBox::Yes;
+}
 
 void Widget::onSimError(quint32 code)
 {
-    Q_UNUSED(code)
+    if (dialogEnum.isVisible())
+        dialogEnum.reject();
 
-    ui->lbInfo->setText(QStringLiteral("Sim Error"));
+    ui->pbtnEnum->setEnabled(false);
+
+    const QString hexCode =
+        QStringLiteral("0x%1").arg(QString::number(code, 16).toUpper().rightJustified(8, QLatin1Char('0')));
+    QMessageBox::critical(this, QStringLiteral("SimConnect Error"),
+                          QStringLiteral("SimConnect reported an error.\nError code: %1 (%2).")
+                              .arg(QString::number(code), hexCode));
+
+    if (connected)
+    {
+        // The error handler performs an automatic disconnect; do not show the manual-exit confirmation.
+        flightActive = false;
+        on_pbtnConnect_clicked();
+    }
+    else
+    {
+        QMetaObject::invokeMethod(simClient, &SimConnectClient::disconnectFromSim, Qt::QueuedConnection);
+    }
 }
 
 Widget::ControlGuard::ControlGuard(Widget *widget) : m_widget(widget)

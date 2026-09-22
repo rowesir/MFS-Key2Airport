@@ -77,7 +77,6 @@ public:
         gridLayout->setObjectName("gridLayout");
         gridLayout->setContentsMargins(6, 6, 6, 8);
         cbConfig = new QComboBox(groupBox);
-        cbConfig->addItem(QString());
         cbConfig->setObjectName("cbConfig");
         cbConfig->setMinimumSize(QSize(240, 32));
         cbConfig->setMaximumSize(QSize(240, 32));
@@ -109,6 +108,8 @@ public:
 
         lbInfo = new QLabel(groupBox);
         lbInfo->setObjectName("lbInfo");
+        lbInfo->setMinimumSize(QSize(0, 32));
+        lbInfo->setMaximumSize(QSize(16777215, 32));
         lbInfo->setFont(font1);
 
         gridLayout->addWidget(lbInfo, 2, 0, 1, 1);
@@ -117,7 +118,11 @@ public:
         pbtnConnect->setObjectName("pbtnConnect");
         pbtnConnect->setMinimumSize(QSize(108, 32));
         pbtnConnect->setMaximumSize(QSize(108, 32));
-        pbtnConnect->setFont(font1);
+        QFont font3;
+        font3.setFamilies({QString::fromUtf8("Microsoft Sans Serif")});
+        font3.setPointSize(12);
+        font3.setBold(true);
+        pbtnConnect->setFont(font3);
         QIcon icon1;
         icon1.addFile(QString::fromUtf8(":/Resoure/CoilBalck.png"), QSize(), QIcon::Normal, QIcon::Off);
         pbtnConnect->setIcon(icon1);
@@ -130,18 +135,20 @@ public:
 
         groupBox_2 = new QGroupBox(Widget);
         groupBox_2->setObjectName("groupBox_2");
-        groupBox_2->setMinimumSize(QSize(370, 100));
-        groupBox_2->setMaximumSize(QSize(370, 100));
+        groupBox_2->setMinimumSize(QSize(370, 110));
+        groupBox_2->setMaximumSize(QSize(370, 110));
         groupBox_2->setFont(font);
         gridLayout_2 = new QGridLayout(groupBox_2);
         gridLayout_2->setObjectName("gridLayout_2");
         gridLayout_2->setContentsMargins(6, 6, 6, 5);
         lbDetail = new QLabel(groupBox_2);
         lbDetail->setObjectName("lbDetail");
-        QFont font3;
-        font3.setPointSize(12);
-        font3.setBold(true);
-        lbDetail->setFont(font3);
+        lbDetail->setMinimumSize(QSize(0, 32));
+        lbDetail->setMaximumSize(QSize(16777215, 32));
+        QFont font4;
+        font4.setPointSize(12);
+        font4.setBold(true);
+        lbDetail->setFont(font4);
 
         gridLayout_2->addWidget(lbDetail, 0, 0, 1, 2);
 
@@ -207,16 +214,14 @@ public:
         lcdRA->setMinimumSize(QSize(90, 40));
         lcdRA->setMaximumSize(QSize(90, 40));
         lcdRA->setSizeIncrement(QSize(120, 40));
-        QFont font4;
-        font4.setPointSize(11);
-        font4.setBold(false);
-        lcdRA->setFont(font4);
+        QFont font5;
+        font5.setPointSize(11);
+        font5.setBold(false);
+        lcdRA->setFont(font5);
         lcdRA->setSmallDecimalPoint(true);
         lcdRA->setDigitCount(4);
         lcdRA->setMode(QLCDNumber::Mode::Dec);
         lcdRA->setSegmentStyle(QLCDNumber::SegmentStyle::Flat);
-        lcdRA->setProperty("value", QVariant(2500.000000000000000));
-        lcdRA->setProperty("intValue", QVariant(2500));
 
         horizontalLayout_2->addWidget(lcdRA);
 
@@ -229,13 +234,11 @@ public:
         lcdLR->setMinimumSize(QSize(120, 40));
         lcdLR->setMaximumSize(QSize(120, 40));
         lcdLR->setSizeIncrement(QSize(120, 40));
-        lcdLR->setFont(font4);
+        lcdLR->setFont(font5);
         lcdLR->setSmallDecimalPoint(true);
         lcdLR->setDigitCount(5);
         lcdLR->setMode(QLCDNumber::Mode::Dec);
         lcdLR->setSegmentStyle(QLCDNumber::SegmentStyle::Flat);
-        lcdLR->setProperty("value", QVariant(-1234.000000000000000));
-        lcdLR->setProperty("intValue", QVariant(-1234));
 
         horizontalLayout_2->addWidget(lcdLR);
 
@@ -251,7 +254,7 @@ public:
         label_3->setObjectName("label_3");
         label_3->setMinimumSize(QSize(100, 20));
         label_3->setMaximumSize(QSize(100, 20));
-        label_3->setFont(font4);
+        label_3->setFont(font5);
 
         horizontalLayout_3->addWidget(label_3);
 
@@ -280,8 +283,6 @@ public:
     {
         Widget->setWindowTitle(QCoreApplication::translate("Widget", "Widget", nullptr));
         groupBox->setTitle(QCoreApplication::translate("Widget", "Setting", nullptr));
-        cbConfig->setItemText(0, QCoreApplication::translate("Widget", "Cessna 172 Cessna Cessna", nullptr));
-
         pbtnFolder->setText(QCoreApplication::translate("Widget", "Folder", nullptr));
         ckbAuto->setText(QCoreApplication::translate("Widget", "Auto-Switching Configuration", nullptr));
         lbInfo->setText(QCoreApplication::translate("Widget", "Standby...", nullptr));

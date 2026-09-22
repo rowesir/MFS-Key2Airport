@@ -13,8 +13,11 @@
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QGridLayout>
+#include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QLabel>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QTableWidget>
 
 QT_BEGIN_NAMESPACE
@@ -23,7 +26,11 @@ class Ui_DialogEnum
 {
 public:
     QGridLayout *gridLayout;
+    QHBoxLayout *horizontalLayout;
     QLabel *label;
+    QSpacerItem *horizontalSpacer;
+    QLabel *label_3;
+    QLineEdit *leFiltra;
     QTableWidget *TWEnumAll;
     QLabel *label_2;
     QTableWidget *TWListem;
@@ -32,14 +39,45 @@ public:
     {
         if (DialogEnum->objectName().isEmpty())
             DialogEnum->setObjectName("DialogEnum");
-        DialogEnum->resize(469, 452);
+        DialogEnum->resize(469, 469);
+        DialogEnum->setMinimumSize(QSize(469, 469));
         gridLayout = new QGridLayout(DialogEnum);
         gridLayout->setObjectName("gridLayout");
+        gridLayout->setHorizontalSpacing(6);
+        gridLayout->setVerticalSpacing(2);
         gridLayout->setContentsMargins(6, 6, 6, 6);
+        horizontalLayout = new QHBoxLayout();
+        horizontalLayout->setObjectName("horizontalLayout");
         label = new QLabel(DialogEnum);
         label->setObjectName("label");
+        label->setMinimumSize(QSize(60, 0));
+        label->setMaximumSize(QSize(60, 16777215));
 
-        gridLayout->addWidget(label, 0, 0, 1, 1);
+        horizontalLayout->addWidget(label);
+
+        horizontalSpacer = new QSpacerItem(178, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        horizontalLayout->addItem(horizontalSpacer);
+
+        label_3 = new QLabel(DialogEnum);
+        label_3->setObjectName("label_3");
+        label_3->setMinimumSize(QSize(40, 0));
+        label_3->setMaximumSize(QSize(40, 16777215));
+        label_3->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        horizontalLayout->addWidget(label_3);
+
+        leFiltra = new QLineEdit(DialogEnum);
+        leFiltra->setObjectName("leFiltra");
+        leFiltra->setMinimumSize(QSize(150, 0));
+        leFiltra->setMaximumSize(QSize(150, 16777215));
+        leFiltra->setLayoutDirection(Qt::LayoutDirection::LeftToRight);
+        leFiltra->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        horizontalLayout->addWidget(leFiltra);
+
+
+        gridLayout->addLayout(horizontalLayout, 0, 0, 1, 1);
 
         TWEnumAll = new QTableWidget(DialogEnum);
         TWEnumAll->setObjectName("TWEnumAll");
@@ -66,6 +104,8 @@ public:
     {
         DialogEnum->setWindowTitle(QCoreApplication::translate("DialogEnum", "Dialog", nullptr));
         label->setText(QCoreApplication::translate("DialogEnum", "Enum All:", nullptr));
+        label_3->setText(QCoreApplication::translate("DialogEnum", "Filtra: ", nullptr));
+        leFiltra->setText(QString());
         label_2->setText(QCoreApplication::translate("DialogEnum", "Listen:", nullptr));
     } // retranslateUi
 
