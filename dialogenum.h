@@ -40,7 +40,11 @@ public:
 
     void setEnumParam(quint64 hash, const QString &param, int size);
 
+signals:
+    void testRequested();
+
 private slots:
+    void on_btnTest_clicked();
     void on_leFiltra_textChanged(const QString &text);
 
 private:

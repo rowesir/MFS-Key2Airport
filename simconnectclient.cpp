@@ -6,6 +6,7 @@
 #include <QStringList>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <limits>
 
@@ -14,6 +15,12 @@ namespace {
 const int kRetryIntervalMs = 1000;
 const SIMCONNECT_CLIENT_EVENT_ID kEventAircraftLoaded = 1;
 const SIMCONNECT_DATA_REQUEST_ID kRequestEnumerateInputEvents = 1;
+const SIMCONNECT_DATA_DEFINITION_ID kDefinitionRadioHeight = 1;
+const SIMCONNECT_DATA_REQUEST_ID kRequestRadioHeight = 100;
+const SIMCONNECT_DATA_DEFINITION_ID kDefinitionLandingRate = 2;
+const SIMCONNECT_DATA_REQUEST_ID kRequestLandingRate = 101;
+const DWORD kRadioHeightIntervalFrames = 5;
+const double kLandingRateAirborneHeightFeet = 100.0;
 
 }
 
@@ -119,6 +126,7 @@ void SimConnectClient::enumerateInputEvents()
     inputEventParams.clear();
     inputEventParamRequests.clear();
     subscribedInputEvents.clear();
+    inputEventGetRequests.clear();
 
     const HRESULT result = SimConnect_EnumerateInputEvents(handle, kRequestEnumerateInputEvents);
     if (FAILED(result)) {
@@ -140,10 +148,176 @@ void SimConnectClient::stopInputEventListening()
     inputEventParams.clear();
     inputEventParamRequests.clear();
     subscribedInputEvents.clear();
+    inputEventGetRequests.clear();
+}
+
+void SimConnectClient::getInputEvent(quint64 hash)
+{
+    if (!handle || !flightActive)
+        return;
+
+    SIMCONNECT_DATA_REQUEST_ID requestId = nextInputEventRequestId++;
+    if (nextInputEventRequestId == 0)
+        nextInputEventRequestId = 2;
+
+    inputEventGetRequests.insert(requestId, hash);
+
+    const HRESULT result = SimConnect_GetInputEvent(handle, requestId, UINT64(hash));
+    if (FAILED(result)) {
+        inputEventGetRequests.remove(requestId);
+        emit simError(quint32(result));
+    }
+}
+
+void SimConnectClient::sendInputEvent(quint64 hash, double value)
+{
+    if (!handle || !flightActive)
+        return;
+
+    const HRESULT result =
+        SimConnect_SetInputEvent(handle, UINT64(hash), DWORD(sizeof(value)), &value);
+    if (FAILED(result))
+        emit simError(quint32(result));
+}
+
+void SimConnectClient::startRadioHeightReading()
+{
+    radioHeightRequested = true;
+    if (!handle || !flightActive || radioHeightReading)
+        return;
+
+    if (!radioHeightDefinitionAdded) {
+        const HRESULT definitionResult =
+            SimConnect_AddToDataDefinition(handle, kDefinitionRadioHeight, "RADIO HEIGHT", "feet",
+                                           SIMCONNECT_DATATYPE_FLOAT64);
+        if (FAILED(definitionResult)) {
+            emit radioHeightUnavailable();
+            return;
+        }
+
+        radioHeightDefinitionAdded = true;
+    }
+
+    const HRESULT requestResult =
+        SimConnect_RequestDataOnSimObject(handle, kRequestRadioHeight, kDefinitionRadioHeight,
+                                          SIMCONNECT_OBJECT_ID_USER_AIRCRAFT,
+                                          SIMCONNECT_PERIOD_SIM_FRAME,
+                                          SIMCONNECT_DATA_REQUEST_FLAG_DEFAULT, 0,
+                                          kRadioHeightIntervalFrames, 0);
+    if (FAILED(requestResult)) {
+        emit radioHeightUnavailable();
+        return;
+    }
+
+    radioHeightReading = true;
+    radioHeightAwaitingFirstData = true;
+}
+
+void SimConnectClient::stopRadioHeightReading()
+{
+    radioHeightRequested = false;
+    stopRadioHeightRequest();
+}
+
+void SimConnectClient::startLandingRateReading()
+{
+    landingRateRequested = true;
+    resetLandingRateState();
+    if (!handle || !flightActive || landingRateReading)
+        return;
+
+    if (!landingRateDefinitionAdded) {
+        HRESULT definitionResult =
+            SimConnect_AddToDataDefinition(handle, kDefinitionLandingRate,
+                                           "PLANE ALT ABOVE GROUND", "feet",
+                                           SIMCONNECT_DATATYPE_FLOAT64);
+        if (FAILED(definitionResult)) {
+            emit landingRateUnavailable();
+            return;
+        }
+
+        definitionResult =
+            SimConnect_AddToDataDefinition(handle, kDefinitionLandingRate,
+                                           "PLANE TOUCHDOWN NORMAL VELOCITY", "feet per second",
+                                           SIMCONNECT_DATATYPE_FLOAT64);
+        if (FAILED(definitionResult)) {
+            SimConnect_ClearDataDefinition(handle, kDefinitionLandingRate);
+            emit landingRateUnavailable();
+            return;
+        }
+
+        definitionResult =
+            SimConnect_AddToDataDefinition(handle, kDefinitionLandingRate, "SIM ON GROUND", "Bool",
+                                           SIMCONNECT_DATATYPE_INT32);
+        if (FAILED(definitionResult)) {
+            SimConnect_ClearDataDefinition(handle, kDefinitionLandingRate);
+            emit landingRateUnavailable();
+            return;
+        }
+
+        landingRateDefinitionAdded = true;
+    }
+
+    const HRESULT requestResult =
+        SimConnect_RequestDataOnSimObject(handle, kRequestLandingRate, kDefinitionLandingRate,
+                                          SIMCONNECT_OBJECT_ID_USER_AIRCRAFT,
+                                          SIMCONNECT_PERIOD_SIM_FRAME,
+                                          SIMCONNECT_DATA_REQUEST_FLAG_DEFAULT, 0,
+                                          kRadioHeightIntervalFrames, 0);
+    if (FAILED(requestResult)) {
+        emit landingRateUnavailable();
+        return;
+    }
+
+    landingRateReading = true;
+    landingRateAwaitingFirstData = true;
+}
+
+void SimConnectClient::stopLandingRateReading()
+{
+    landingRateRequested = false;
+    resetLandingRateState();
+    stopLandingRateRequest();
+}
+
+void SimConnectClient::stopRadioHeightRequest()
+{
+    if (handle && radioHeightReading) {
+        SimConnect_RequestDataOnSimObject(handle, kRequestRadioHeight, kDefinitionRadioHeight,
+                                          SIMCONNECT_OBJECT_ID_USER_AIRCRAFT,
+                                          SIMCONNECT_PERIOD_NEVER,
+                                          SIMCONNECT_DATA_REQUEST_FLAG_DEFAULT, 0, 0, 0);
+    }
+
+    radioHeightReading = false;
+    radioHeightAwaitingFirstData = false;
+}
+
+void SimConnectClient::stopLandingRateRequest()
+{
+    if (handle && landingRateReading) {
+        SimConnect_RequestDataOnSimObject(handle, kRequestLandingRate, kDefinitionLandingRate,
+                                          SIMCONNECT_OBJECT_ID_USER_AIRCRAFT,
+                                          SIMCONNECT_PERIOD_NEVER,
+                                          SIMCONNECT_DATA_REQUEST_FLAG_DEFAULT, 0, 0, 0);
+    }
+
+    landingRateReading = false;
+    landingRateAwaitingFirstData = false;
+}
+
+void SimConnectClient::resetLandingRateState()
+{
+    landingRateAirborne = false;
+    landingRatePreviousOnGround = true;
+    landingRateHasResult = false;
 }
 
 void SimConnectClient::closeConnection()
 {
+    stopRadioHeightReading();
+    stopLandingRateReading();
+
     connecting = false;
     flightActive = false;
     inputEventListening = false;
@@ -151,6 +325,12 @@ void SimConnectClient::closeConnection()
     inputEventParams.clear();
     inputEventParamRequests.clear();
     subscribedInputEvents.clear();
+    inputEventGetRequests.clear();
+    radioHeightRequested = false;
+    landingRateRequested = false;
+    radioHeightDefinitionAdded = false;
+    landingRateDefinitionAdded = false;
+    resetLandingRateState();
 
     if (retryTimer)
         retryTimer->stop();
@@ -182,12 +362,23 @@ void SimConnectClient::processMessages()
 
 void SimConnectClient::handleQuit()
 {
+    radioHeightRequested = false;
+    landingRateRequested = false;
+    radioHeightReading = false;
+    radioHeightAwaitingFirstData = false;
+    radioHeightDefinitionAdded = false;
+    landingRateReading = false;
+    landingRateAwaitingFirstData = false;
+    landingRateDefinitionAdded = false;
+    resetLandingRateState();
+
     flightActive = false;
     inputEventListening = false;
     inputEventTypes.clear();
     inputEventParams.clear();
     inputEventParamRequests.clear();
     subscribedInputEvents.clear();
+    inputEventGetRequests.clear();
 
     if (handle)
     {
@@ -206,6 +397,32 @@ void SimConnectClient::handleQuit()
 
 void SimConnectClient::handleException(DWORD code)
 {
+    bool handled = false;
+
+    if (radioHeightReading && radioHeightAwaitingFirstData && isRadioHeightException(code)) {
+        stopRadioHeightRequest();
+        if (handle)
+            SimConnect_ClearDataDefinition(handle, kDefinitionRadioHeight);
+        radioHeightDefinitionAdded = false;
+        if (radioHeightRequested)
+            emit radioHeightUnavailable();
+        handled = true;
+    }
+
+    if (landingRateReading && landingRateAwaitingFirstData && isRadioHeightException(code)) {
+        stopLandingRateRequest();
+        if (handle)
+            SimConnect_ClearDataDefinition(handle, kDefinitionLandingRate);
+        landingRateDefinitionAdded = false;
+        resetLandingRateState();
+        if (landingRateRequested)
+            emit landingRateUnavailable();
+        handled = true;
+    }
+
+    if (handled)
+        return;
+
     emit simError(quint32(code));
 }
 
@@ -225,6 +442,8 @@ void SimConnectClient::handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event)
     case SIMCONNECT_FLOW_EVENT_BACK_TO_MAIN_MENU:
         if (flightActive)
         {
+            stopRadioHeightReading();
+            stopLandingRateReading();
             flightActive = false;
             emit flightEnded();
         }
@@ -237,8 +456,19 @@ void SimConnectClient::handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event)
 
 void SimConnectClient::notifyAircraftLoaded(const char *file)
 {
-    if (flightActive)
-        emit aircraftLoaded(QString::fromUtf8(file));
+    // AircraftLoaded and FLIGHT_START are not guaranteed to arrive in a
+    // fixed order.  The UI keeps the event until the flight state is ready.
+    emit aircraftLoaded(QString::fromUtf8(file));
+}
+
+bool SimConnectClient::isRadioHeightException(DWORD code) const
+{
+    return code == SIMCONNECT_EXCEPTION_NAME_UNRECOGNIZED ||
+           code == SIMCONNECT_EXCEPTION_INVALID_DATA_TYPE ||
+           code == SIMCONNECT_EXCEPTION_INVALID_DATA_SIZE ||
+           code == SIMCONNECT_EXCEPTION_DATA_ERROR ||
+           code == SIMCONNECT_EXCEPTION_DEFINITION_ERROR ||
+           code == SIMCONNECT_EXCEPTION_DATUM_ID;
 }
 
 int SimConnectClient::inputEventParamSize(const QString &param)
@@ -274,8 +504,6 @@ int SimConnectClient::inputEventParamSize(const QString &param)
 
 void CALLBACK SimConnectClient::dispatchProc(SIMCONNECT_RECV *data, DWORD cbData, void *context)
 {
-    Q_UNUSED(cbData)
-
     SimConnectClient *client = static_cast<SimConnectClient *>(context);
 
     switch (data->dwID)
@@ -357,6 +585,119 @@ void CALLBACK SimConnectClient::dispatchProc(SIMCONNECT_RECV *data, DWORD cbData
         }
         client->inputEventParams.insert(hash, qMakePair(param, size));
         emit client->inputEventParamsEnumerated(hash, param, size);
+        break;
+    }
+    case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+    {
+        const SIMCONNECT_RECV_SIMOBJECT_DATA *simObjectData =
+            static_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA *>(data);
+        const char *rawValue = reinterpret_cast<const char *>(&simObjectData->dwData);
+        const size_t valueOffset = rawValue - reinterpret_cast<const char *>(simObjectData);
+
+        if (simObjectData->dwRequestID == kRequestRadioHeight &&
+            simObjectData->dwDefineID == kDefinitionRadioHeight) {
+            if (!client->radioHeightReading || simObjectData->dwDefineCount < 1)
+                break;
+
+            if (cbData < valueOffset + sizeof(double)) {
+                if (client->radioHeightRequested)
+                    emit client->radioHeightUnavailable();
+                break;
+            }
+
+            double radioHeight = 0.0;
+            std::memcpy(&radioHeight, rawValue, sizeof(radioHeight));
+            client->radioHeightAwaitingFirstData = false;
+            if (!std::isfinite(radioHeight)) {
+                if (client->radioHeightRequested)
+                    emit client->radioHeightUnavailable();
+                break;
+            }
+
+            if (client->radioHeightRequested)
+                emit client->radioHeightReceived(radioHeight);
+            break;
+        }
+
+        if (simObjectData->dwRequestID != kRequestLandingRate ||
+            simObjectData->dwDefineID != kDefinitionLandingRate ||
+            !client->landingRateReading || simObjectData->dwDefineCount < 3)
+            break;
+
+        constexpr size_t dataSize = sizeof(double) + sizeof(double) + sizeof(LONG);
+        if (cbData < valueOffset + dataSize) {
+            if (client->landingRateRequested)
+                emit client->landingRateUnavailable();
+            break;
+        }
+
+        double aboveGroundHeight = 0.0;
+        double touchdownNormalVelocity = 0.0;
+        LONG onGroundValue = 0;
+        std::memcpy(&aboveGroundHeight, rawValue, sizeof(aboveGroundHeight));
+        std::memcpy(&touchdownNormalVelocity, rawValue + sizeof(aboveGroundHeight),
+                    sizeof(touchdownNormalVelocity));
+        std::memcpy(&onGroundValue, rawValue + sizeof(aboveGroundHeight) +
+                                             sizeof(touchdownNormalVelocity),
+                    sizeof(onGroundValue));
+        client->landingRateAwaitingFirstData = false;
+        if (!std::isfinite(aboveGroundHeight)) {
+            if (client->landingRateRequested)
+                emit client->landingRateUnavailable();
+            break;
+        }
+
+        const bool onGround = onGroundValue != 0;
+        if (aboveGroundHeight >= kLandingRateAirborneHeightFeet) {
+            const bool newlyAirborne = !client->landingRateAirborne;
+            client->landingRateHasResult = false;
+            client->landingRateAirborne = true;
+            if (newlyAirborne)
+                emit client->landingRateCleared();
+        }
+
+        if (client->landingRateAirborne && !client->landingRatePreviousOnGround && onGround &&
+            !client->landingRateHasResult) {
+            if (std::isfinite(touchdownNormalVelocity)) {
+                client->landingRateHasResult = true;
+                client->landingRateAirborne = false;
+                emit client->landingRateReceived(touchdownNormalVelocity * 60.0);
+            } else {
+                emit client->landingRateUnavailable();
+            }
+        }
+
+        client->landingRatePreviousOnGround = onGround;
+        break;
+    }
+    case SIMCONNECT_RECV_ID_GET_INPUT_EVENT:
+    {
+        const SIMCONNECT_RECV_GET_INPUT_EVENT *inputEvent =
+            static_cast<const SIMCONNECT_RECV_GET_INPUT_EVENT *>(data);
+        const auto request = client->inputEventGetRequests.constFind(inputEvent->dwRequestID);
+        if (request == client->inputEventGetRequests.constEnd())
+            break;
+
+        const quint64 hash = request.value();
+        client->inputEventGetRequests.remove(inputEvent->dwRequestID);
+
+        if (inputEvent->eType != SIMCONNECT_INPUT_EVENT_TYPE_DOUBLE) {
+            emit client->inputEventValueUnavailable(hash);
+            break;
+        }
+
+        const char *rawValue = reinterpret_cast<const char *>(&inputEvent->Value);
+        const size_t valueOffset = reinterpret_cast<const char *>(&inputEvent->Value) -
+                                   reinterpret_cast<const char *>(inputEvent);
+        const size_t rawSize = cbData > valueOffset ? cbData - valueOffset : 0;
+        if (rawSize < sizeof(double)) {
+            emit client->inputEventValueUnavailable(hash);
+            break;
+        }
+
+        double value = 0.0;
+        std::memcpy(&value, rawValue, sizeof(value));
+        emit client->inputEventValueReceived(hash, value);
         break;
     }
     case SIMCONNECT_RECV_ID_SUBSCRIBE_INPUT_EVENT:

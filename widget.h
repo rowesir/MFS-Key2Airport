@@ -3,16 +3,19 @@
 
 #include <QList>
 #include <QPair>
+#include <QHash>
 #include <QTimer>
 #include <QWidget>
 
 #include "dialogenum.h"
+#include "dialogtest.h"
 #include "directinputlistener.h"
 #include "inputlistener.h"
 #include "simconnectclient.h"
 
 QT_BEGIN_NAMESPACE
 class QThread;
+class QSoundEffect;
 QT_END_NAMESPACE
 
 class QCloseEvent;
@@ -39,6 +42,8 @@ class Widget : public QWidget
   private slots:
     void on_pbtnConnect_clicked();
     void on_pbtnEnum_clicked();
+    void on_pbtnTest_clicked();
+    void onDialogEnumTestRequested();
 
     void onKeyPressed(const QString &name);
 
@@ -62,6 +67,16 @@ class Widget : public QWidget
 
     void onSimError(quint32 code);
 
+    void onRadioHeightReceived(double value);
+
+    void onRadioHeightUnavailable();
+
+    void onLandingRateReceived(double feetPerMinute);
+
+    void onLandingRateCleared();
+
+    void onLandingRateUnavailable();
+
   private:
     class ControlGuard
     {
@@ -80,11 +95,16 @@ class Widget : public QWidget
     void initUI();
     void setInfoText(const QString &text, const QString &color);
     void resetConnectionUi();
+    void resetRadioHeight();
+    void resetRadioHeightCallouts();
+    void updateRadioHeightCallouts(double value);
+    void resetLandingRate();
     bool confirmFlightExit(const QString &action);
     QList<QWidget *> guardedControls() const;
 
     Ui::Widget *ui;
     DialogEnum dialogEnum;
+    DialogTest dialogTest;
     QThread *inputThread                     = nullptr;
     QThread *simThread                       = nullptr;
     InputListener *inputListener             = nullptr;
@@ -93,5 +113,10 @@ class Widget : public QWidget
     QTimer *timerDetail                      = nullptr;
     bool connected                           = false;
     bool flightActive                        = false;
+    bool aircraftLoaded                      = false;
+    QHash<int, QSoundEffect *> radioHeightCalloutSounds;
+    QHash<int, bool> radioHeightCalloutPlayed;
+    double previousRadioHeight               = 0.0;
+    bool hasPreviousRadioHeight               = false;
 };
 #endif // WIDGET_H

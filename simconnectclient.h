@@ -28,6 +28,12 @@ public slots:
     void disconnectFromSim();
     void enumerateInputEvents();
     void stopInputEventListening();
+    void getInputEvent(quint64 hash);
+    void sendInputEvent(quint64 hash, double value);
+    void startRadioHeightReading();
+    void stopRadioHeightReading();
+    void startLandingRateReading();
+    void stopLandingRateReading();
 
 signals:
     void connected();
@@ -40,6 +46,13 @@ signals:
     void inputEventParamsEnumerated(quint64 hash, const QString &param, int size);
     void inputEventReceived(quint64 hash, const QString &eType, const QString &value,
                             const QString &param, int size);
+    void inputEventValueReceived(quint64 hash, double value);
+    void inputEventValueUnavailable(quint64 hash);
+    void radioHeightReceived(double value);
+    void radioHeightUnavailable();
+    void landingRateReceived(double feetPerMinute);
+    void landingRateCleared();
+    void landingRateUnavailable();
     void simError(quint32 code);
 
 private:
@@ -50,6 +63,10 @@ private:
     void handleException(DWORD code);
     void handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event);
     void notifyAircraftLoaded(const char *file);
+    bool isRadioHeightException(DWORD code) const;
+    void stopRadioHeightRequest();
+    void stopLandingRateRequest();
+    void resetLandingRateState();
     static int inputEventParamSize(const QString &param);
     static void CALLBACK dispatchProc(SIMCONNECT_RECV *data, DWORD cbData, void *context);
 
@@ -64,6 +81,19 @@ private:
     QHash<quint64, QPair<QString, int>> inputEventParams;
     QSet<quint64> inputEventParamRequests;
     QSet<quint64> subscribedInputEvents;
+    QHash<SIMCONNECT_DATA_REQUEST_ID, quint64> inputEventGetRequests;
+    SIMCONNECT_DATA_REQUEST_ID nextInputEventRequestId = 2;
+    bool radioHeightRequested = false;
+    bool landingRateRequested = false;
+    bool radioHeightReading = false;
+    bool radioHeightDefinitionAdded = false;
+    bool radioHeightAwaitingFirstData = false;
+    bool landingRateReading = false;
+    bool landingRateDefinitionAdded = false;
+    bool landingRateAwaitingFirstData = false;
+    bool landingRateAirborne = false;
+    bool landingRatePreviousOnGround = true;
+    bool landingRateHasResult = false;
 };
 
 #endif // SIMCONNECTCLIENT_H

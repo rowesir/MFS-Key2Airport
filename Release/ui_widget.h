@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'widget.ui'
 **
-** Created by: Qt User Interface Compiler version 6.7.1
+** Created by: Qt User Interface Compiler version 6.8.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -22,6 +22,7 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QSpacerItem>
+#include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
 
 QT_BEGIN_NAMESPACE
@@ -38,11 +39,13 @@ public:
     QLabel *lbInfo;
     QPushButton *pbtnConnect;
     QGroupBox *groupBox_2;
-    QGridLayout *gridLayout_2;
+    QVBoxLayout *verticalLayout;
     QLabel *lbDetail;
     QFrame *line;
+    QHBoxLayout *horizontalLayout_4;
     QPushButton *pbtnEnum;
     QSpacerItem *horizontalSpacer;
+    QPushButton *pbtnTest;
     QGroupBox *groupBox_3;
     QGridLayout *gridLayout_3;
     QHBoxLayout *horizontalLayout;
@@ -92,7 +95,7 @@ public:
         pbtnFolder->setMaximumSize(QSize(108, 32));
         pbtnFolder->setFont(font1);
         QIcon icon;
-        icon.addFile(QString::fromUtf8(":/Resoure/OpenFile.png"), QSize(), QIcon::Normal, QIcon::Off);
+        icon.addFile(QString::fromUtf8(":/Resoure/OpenFile.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
         pbtnFolder->setIcon(icon);
         pbtnFolder->setIconSize(QSize(20, 20));
 
@@ -124,7 +127,7 @@ public:
         font3.setBold(true);
         pbtnConnect->setFont(font3);
         QIcon icon1;
-        icon1.addFile(QString::fromUtf8(":/Resoure/CoilBalck.png"), QSize(), QIcon::Normal, QIcon::Off);
+        icon1.addFile(QString::fromUtf8(":/Resoure/CoilBalck.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
         pbtnConnect->setIcon(icon1);
         pbtnConnect->setIconSize(QSize(18, 18));
 
@@ -135,12 +138,12 @@ public:
 
         groupBox_2 = new QGroupBox(Widget);
         groupBox_2->setObjectName("groupBox_2");
-        groupBox_2->setMinimumSize(QSize(370, 110));
-        groupBox_2->setMaximumSize(QSize(370, 110));
+        groupBox_2->setMinimumSize(QSize(370, 120));
+        groupBox_2->setMaximumSize(QSize(370, 120));
         groupBox_2->setFont(font);
-        gridLayout_2 = new QGridLayout(groupBox_2);
-        gridLayout_2->setObjectName("gridLayout_2");
-        gridLayout_2->setContentsMargins(6, 6, 6, 5);
+        verticalLayout = new QVBoxLayout(groupBox_2);
+        verticalLayout->setObjectName("verticalLayout");
+        verticalLayout->setContentsMargins(6, 6, 6, 6);
         lbDetail = new QLabel(groupBox_2);
         lbDetail->setObjectName("lbDetail");
         lbDetail->setMinimumSize(QSize(0, 32));
@@ -150,30 +153,48 @@ public:
         font4.setBold(true);
         lbDetail->setFont(font4);
 
-        gridLayout_2->addWidget(lbDetail, 0, 0, 1, 2);
+        verticalLayout->addWidget(lbDetail);
 
         line = new QFrame(groupBox_2);
         line->setObjectName("line");
         line->setFrameShape(QFrame::Shape::HLine);
         line->setFrameShadow(QFrame::Shadow::Sunken);
 
-        gridLayout_2->addWidget(line, 1, 0, 1, 2);
+        verticalLayout->addWidget(line);
 
+        horizontalLayout_4 = new QHBoxLayout();
+        horizontalLayout_4->setSpacing(1);
+        horizontalLayout_4->setObjectName("horizontalLayout_4");
         pbtnEnum = new QPushButton(groupBox_2);
         pbtnEnum->setObjectName("pbtnEnum");
         pbtnEnum->setMinimumSize(QSize(80, 30));
         pbtnEnum->setMaximumSize(QSize(80, 30));
         pbtnEnum->setFont(font1);
         QIcon icon2;
-        icon2.addFile(QString::fromUtf8(":/Resoure/com.png"), QSize(), QIcon::Normal, QIcon::Off);
+        icon2.addFile(QString::fromUtf8(":/Resoure/com.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
         pbtnEnum->setIcon(icon2);
         pbtnEnum->setIconSize(QSize(20, 20));
 
-        gridLayout_2->addWidget(pbtnEnum, 2, 0, 1, 1);
+        horizontalLayout_4->addWidget(pbtnEnum);
 
         horizontalSpacer = new QSpacerItem(263, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
-        gridLayout_2->addItem(horizontalSpacer, 2, 1, 1, 1);
+        horizontalLayout_4->addItem(horizontalSpacer);
+
+        pbtnTest = new QPushButton(groupBox_2);
+        pbtnTest->setObjectName("pbtnTest");
+        pbtnTest->setMinimumSize(QSize(80, 30));
+        pbtnTest->setMaximumSize(QSize(80, 30));
+        pbtnTest->setFont(font1);
+        QIcon icon3;
+        icon3.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        pbtnTest->setIcon(icon3);
+        pbtnTest->setIconSize(QSize(20, 20));
+
+        horizontalLayout_4->addWidget(pbtnTest);
+
+
+        verticalLayout->addLayout(horizontalLayout_4);
 
 
         gridLayout_4->addWidget(groupBox_2, 1, 0, 1, 1);
@@ -290,6 +311,7 @@ public:
         groupBox_2->setTitle(QCoreApplication::translate("Widget", "Detail", nullptr));
         lbDetail->setText(QCoreApplication::translate("Widget", "CTRL+E", nullptr));
         pbtnEnum->setText(QCoreApplication::translate("Widget", "Enum", nullptr));
+        pbtnTest->setText(QCoreApplication::translate("Widget", "Test", nullptr));
         groupBox_3->setTitle(QCoreApplication::translate("Widget", "Tools", nullptr));
         ckbRA->setText(QCoreApplication::translate("Widget", "Radio Altitude Callouts", nullptr));
         ckbLR->setText(QCoreApplication::translate("Widget", "Landing Rate", nullptr));

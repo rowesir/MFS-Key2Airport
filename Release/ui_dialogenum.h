@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'dialogenum.ui'
 **
-** Created by: Qt User Interface Compiler version 6.7.1
+** Created by: Qt User Interface Compiler version 6.8.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -10,6 +10,7 @@
 #define UI_DIALOGENUM_H
 
 #include <QtCore/QVariant>
+#include <QtGui/QIcon>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QGridLayout>
@@ -17,6 +18,7 @@
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
+#include <QtWidgets/QPushButton>
 #include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QTableWidget>
 
@@ -29,6 +31,7 @@ public:
     QHBoxLayout *horizontalLayout;
     QLabel *label;
     QSpacerItem *horizontalSpacer;
+    QPushButton *btnTest;
     QLabel *label_3;
     QLineEdit *leFiltra;
     QTableWidget *TWEnumAll;
@@ -58,6 +61,19 @@ public:
         horizontalSpacer = new QSpacerItem(178, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
         horizontalLayout->addItem(horizontalSpacer);
+
+        btnTest = new QPushButton(DialogEnum);
+        btnTest->setObjectName("btnTest");
+        btnTest->setMinimumSize(QSize(80, 27));
+        btnTest->setMaximumSize(QSize(80, 27));
+        QFont font;
+        font.setPointSize(10);
+        btnTest->setFont(font);
+        QIcon icon;
+        icon.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        btnTest->setIcon(icon);
+
+        horizontalLayout->addWidget(btnTest);
 
         label_3 = new QLabel(DialogEnum);
         label_3->setObjectName("label_3");
@@ -104,6 +120,7 @@ public:
     {
         DialogEnum->setWindowTitle(QCoreApplication::translate("DialogEnum", "Dialog", nullptr));
         label->setText(QCoreApplication::translate("DialogEnum", "Enum All:", nullptr));
+        btnTest->setText(QCoreApplication::translate("DialogEnum", "Test", nullptr));
         label_3->setText(QCoreApplication::translate("DialogEnum", "Filtra: ", nullptr));
         leFiltra->setText(QString());
         label_2->setText(QCoreApplication::translate("DialogEnum", "Listen:", nullptr));

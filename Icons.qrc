@@ -4,5 +4,21 @@
         <file>Resoure/CoilRed.png</file>
         <file>Resoure/com.png</file>
         <file>Resoure/OpenFile.png</file>
+        <file>Resoure/Send.png</file>
+        <file>Resoure/Refresh.png</file>
+    </qresource>
+    <qresource prefix="/sound">
+        <file>Resoure/altitude-10.wav</file>
+        <file>Resoure/altitude-20.wav</file>
+        <file>Resoure/altitude-30.wav</file>
+        <file>Resoure/altitude-40.wav</file>
+        <file>Resoure/altitude-50.wav</file>
+        <file>Resoure/altitude-100.wav</file>
+        <file>Resoure/altitude-200.wav</file>
+        <file>Resoure/altitude-300.wav</file>
+        <file>Resoure/altitude-400.wav</file>
+        <file>Resoure/altitude-500.wav</file>
+        <file>Resoure/altitude-1000.wav</file>
+        <file>Resoure/altitude-2500.wav</file>
     </qresource>
 </RCC>

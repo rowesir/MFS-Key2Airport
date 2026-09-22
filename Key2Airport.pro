@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -10,6 +10,7 @@ CONFIG += c++17
 
 SOURCES += \
     dialogenum.cpp \
+    dialogtest.cpp \
     directinputlistener.cpp \
     inputlistener.cpp \
     main.cpp \
@@ -18,6 +19,7 @@ SOURCES += \
 
 HEADERS += \
     dialogenum.h \
+    dialogtest.h \
     directinputlistener.h \
     inputlistener.h \
     simconnectclient.h \
@@ -25,6 +27,7 @@ HEADERS += \
 
 FORMS += \
     dialogenum.ui \
+    dialogtest.ui \
     widget.ui
 
 win32 {

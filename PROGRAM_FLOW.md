@@ -1,6 +1,6 @@
 # Key2Airport 程序流程
 
-> 版本：v3.14
+> 版本：v3.28
 > 最后更新：2026-09-22
 > 说明：本文档按讨论逐步补充，后续控件逻辑逐节追加。代码实现以本文档为准。
 
@@ -20,8 +20,9 @@
 | `ckbAuto` | QCheckBox | 已勾选 | `setChecked(true)` |
 | `lbInfo` | QLabel | `Standby...`，黑色 | `Waiting MFS...` 使用橘黄色；`Connected` / `Aircraft Loaded` 使用深绿色；错误不再写入此控件，见第 4、5 节 |
 | `pbtnEnum` | QPushButton | 失能 | 仅在收到 `FLIGHT_START` 后使能；飞行结束、连接丢失或异常时失能。点击后打开 `DialogEnum` 并枚举全部输入事件填入 `TWEnumAll` |
-| `ckbRA` | QCheckBox | 已勾选 | `setChecked(true)` |
-| `ckbLR` | QCheckBox | 已勾选 | `setChecked(true)` |
+| `pbtnTest` | QPushButton | 失能 | 与 `pbtnEnum` 使用相同的飞行状态启用规则；点击后打开 `DialogTest`，用于测试发送浮点型 InputEvent |
+| `ckbRA` | QCheckBox | 已勾选 | `setChecked(true)`；飞机加载且勾选时在 SDK 工作线程周期读取标准 SimVar `RADIO HEIGHT` |
+| `ckbLR` | QCheckBox | 已勾选 | `setChecked(true)`；飞机加载且勾选时在 SDK 工作线程读取接地状态和上次接地法向速度 |
 | `lcdRA` | QLCDNumber | 显示 `----` | `display("----")` |
 | `lcdLR` | QLCDNumber | 显示 `-----` | `display("-----")` |
 | `lbPage` | QLabel | 空 | 清空文本 |
@@ -65,7 +66,7 @@ private:
 1. 构造函数末尾调用一次 —— 因此程序启动时两张表已经是空的，满足"程序开始时清空"的要求；
 2. 每次打开窗口前再调用一次 —— 因此每次打开窗口都是干净的两张表。
 
-当前打开方式：收到 `FLIGHT_START` 后使能 `pbtnEnum`；点击后先调用 `initUI()` 清空旧数据和枚举缓存，再以模态方式打开 `DialogEnum`，同时向 SDK 线程投递一次 `SimConnect_EnumerateInputEvents` 请求。枚举回包可能分成多个页面，每个页面中的 `SIMCONNECT_INPUT_EVENT_DESCRIPTOR` 都追加到枚举缓存，并按当前过滤条件显示到 `TWEnumAll`；每个 Hash 同时请求 `SimConnect_EnumerateInputEventParams` 获取参数签名，并调用 `SimConnect_SubscribeInputEvent` 开始监听。Dialog 关闭后取消本次打开期间的全部订阅；如果收到 `FLIGHT_END` 或发生 SimConnect 异常，主窗口会主动关闭 Dialog，随后同样取消监听。`TWListem` 不过滤：普通 Hash 每次通知都插入第 0 行；某个 Hash 在最近 1 秒内达到 8 条通知后进入高频折叠，只保留一行并更新 Value / Time；已折叠 Hash 在最近 1 秒内降到 4 条或更少时恢复普通插入，切换时不恢复旧行，当前通知作为新的第 0 行。参数回包到达后按 Hash 更新当前显示行的 Param / Size。
+当前打开方式：收到 `FLIGHT_START` 后使能 `pbtnEnum`；点击后先调用 `initUI()` 清空旧数据和枚举缓存，再以模态方式打开 `DialogEnum`，同时向 SDK 线程投递一次 `SimConnect_EnumerateInputEvents` 请求。枚举回包可能分成多个页面，每个页面中的 `SIMCONNECT_INPUT_EVENT_DESCRIPTOR` 都追加到枚举缓存，并按当前过滤条件显示到 `TWEnumAll`；每个 Hash 同时请求 `SimConnect_EnumerateInputEventParams` 获取参数签名，并调用 `SimConnect_SubscribeInputEvent` 开始监听。Dialog 关闭后取消本次打开期间的全部订阅；如果收到 `FLIGHT_END`、发生 SimConnect 异常或连接丢失，主窗口会主动关闭 Dialog，随后同样取消监听。`TWListem` 不过滤：普通 Hash 每次通知都插入第 0 行；某个 Hash 在最近 1 秒内达到 8 条通知后进入高频折叠，只保留一行并更新 Value / Time；已折叠 Hash 在最近 1 秒内降到 4 条或更少时恢复普通插入，切换时不恢复旧行，当前通知作为新的第 0 行。参数回包到达后按 Hash 更新当前显示行的 Param / Size。
 
 实现约定：`on_pbtnConnect_clicked` 和 `on_pbtnEnum_clicked` 必须声明在类的 `private slots:` 里。`setupUi` 的自动连接是 `QMetaObject::connectSlotsByName`，它只遍历元对象里注册过的方法，普通成员函数不会被连接。
 
@@ -200,6 +201,57 @@ Value: 0
 3. **B Event 的 Inc / Dec 分支**：需要通过 WASM / Gauge API 执行类似 `1 (>B:SF50_AUTOPILOT_HEADING_Inc)` 和 `1 (>B:SF50_AUTOPILOT_HEADING_Dec)` 的 RPN，当前纯 SimConnect 接口不能直接完成。
 
 因此，旋钮绑定数据不能只保存父级 Hash，还需要保存 `Set / Inc / Dec` 操作类型以及对应的发送通道。当前 DialogEnum 的监听结果只能作为父级 InputEvent 的发现和参数分析工具，不能保证自动发现所有可执行的旋钮方向分支。
+
+### 1.5 InputEvent 浮点发送测试
+
+`pbtnTest` 只在收到 `FLIGHT_START` 后启用，点击后以模态方式打开 `DialogTest`。`DialogEnum` 顶部的 `btnTest` 也可以打开同一个 `DialogTest`，便于在枚举结果和监听数据旁直接测试 Hash；该按钮通过 `DialogEnum::testRequested` 请求 `Widget` 打开测试窗口，`DialogEnum` 不直接持有测试窗口对象。`DialogTest` 是 `Widget` 的值成员，但其 Qt 父窗口是 `DialogEnum`。通过 `DialogEnum` 打开时，`DialogTest` 使用非模态 `show()`，因此两个窗口可以同时操作；从主窗口 `pbtnTest` 打开时仍使用模态 `exec()`。关闭 `DialogEnum` 时会同时隐藏测试窗口；飞行结束、SimConnect 异常或连接丢失时两个窗口都会退出。
+
+测试窗口控件：
+
+- `lnHash`：只允许输入数字，最多 32 个字符。发送前检查不能为空，并转换为 `quint64`；空值或转换失败时弹出英文错误框。
+- `sbValue`：待发送的浮点数。
+- `btnGet`：根据 `lnHash` 异步读取 InputEvent 当前值；Hash 为空或转换失败时沿用英文错误提示。只有 `DOUBLE` 类型回包会更新 `sbValue`；如果返回类型是字符串，则弹出英文提示，不能获取字符串值。
+- `btnSend`：发送当前 Hash 和浮点数。
+
+发送请求通过 Qt 排队投递到 SDK 线程，在 `SimConnectClient` 中调用：
+
+```cpp
+SimConnect_SetInputEvent(handle, hash, sizeof(double), &value);
+```
+
+当前测试只支持单个浮点值，使用 `Hash + 8 字节 double`。发送失败沿用现有 `simError` 错误处理。
+
+读取请求通过 Qt 排队投递到 SDK 线程，在 `SimConnectClient` 中调用 `SimConnect_GetInputEvent`。该 API 是异步的，回包中的 `dwRequestID` 用于映射原始 Hash；字符串类型不会写入 `sbValue`。
+
+### 1.6 无线电高度读取
+
+`ckbRA` 勾选且收到确实的 `AircraftLoaded` 后，向 SDK 工作线程投递 `RADIO HEIGHT` 读取请求；如果 `AircraftLoaded` 先于 `FLIGHT_START` 到达，则先缓存该状态，待飞行状态成立后启动。相同的 `ckbRA` 状态还控制 RA 高度语音播报；`ckbLR` 使用独立的数据请求，不依赖无线电高度：
+
+```cpp
+SimConnect_AddToDataDefinition(handle, definitionId, "RADIO HEIGHT", "feet",
+                               SIMCONNECT_DATATYPE_FLOAT64);
+SimConnect_RequestDataOnSimObject(handle, requestId, definitionId,
+                                  SIMCONNECT_OBJECT_ID_USER_AIRCRAFT,
+                                  SIMCONNECT_PERIOD_SIM_FRAME, 0, 0, 5, 0);
+```
+
+数据回包解析后通过 Qt 信号更新主线程的 `lcdRA`。显示时不保留小数，以 5 英尺为显示分辨率并向上取整：例如 `2411` 显示为 `2415`；原始值不超过 `2500` 时正常显示，原始值超过 `2500` 时显示 `++++`。有效数值包括 `0`；只有没有有效回包、返回非有限值、请求失败或机型不支持该 SimVar 时显示 `----`。不会使用 `PLANE ALT ABOVE GROUND` 代替无线电高度。
+
+取消勾选 `ckbRA`、飞行结束、飞机断线、SimConnect 异常、手动断开或程序正常关闭时，停止该请求并将 `lcdRA` 恢复为 `----`。如果机型没有可用的无线电高度实现，仅读取功能保持不可用，不影响其他 SimConnect 功能。
+
+### 1.7 RA 高度语音播报
+
+RA 语音播报与 `ckbRA` 共用启用条件：只有勾选 `ckbRA`、飞行有效且飞机已经加载时才工作。播报使用 SDK 返回的原始 `RADIO HEIGHT`，不使用 `lcdRA` 显示时按 5 英尺取整后的数值。
+
+播报阈值为 `2500`、`1000`、`500`、`300`、`100`、`50`、`40`、`30`、`20`、`10` 英尺。只有 RA 从高到低穿过阈值时播报一次；起飞时 RA 从低到高经过阈值不会播报，保持在某个高度也不会循环播报。每个 WAV 使用独立的异步 `QSoundEffect`，因此下降过快时，所有后续穿过的高度都可以立即开始播放，任意多个高度之间都允许重叠，不会互相打断。
+
+每个阈值使用 5 英尺滞回重新武装：播报后，RA 必须先上升到该阈值以上 5 英尺，下一次下降穿越时才允许再次播报。飞行开始、飞机重载、飞行结束、断线、异常、取消 `ckbRA` 或程序关闭时，停止正在播放的音频并清空所有阈值状态。
+
+### 1.8 接地率读取
+
+`ckbLR` 勾选且收到确实的 `AircraftLoaded` 后，向 SDK 工作线程投递独立的数据请求，读取几何离地高度 `PLANE ALT ABOVE GROUND`、标准 SimVar `PLANE TOUCHDOWN NORMAL VELOCITY`（单位 `feet per second`）和 `SIM ON GROUND`。接地率不通过普通垂直速度计算，而是使用模拟器记录的上一次接地法向速度，换算为 `feet per minute` 后更新 `lcdLR`。因此某些机型没有 `RADIO HEIGHT` 时，只要几何离地高度和接地相关 SimVar 可用，接地率仍可工作。
+
+`100 ft` 只用于确认飞机已经起飞：几何离地高度首次达到该值时立即将 `lcdLR` 复位为 `-----`，不参与接地率数值计算。之后检测到 `SIM ON GROUND` 从空中状态变为地面状态时，直接读取模拟器提供的 `PLANE TOUCHDOWN NORMAL VELOCITY`，换算单位后以负号显示本次接地率；接地后的弹跳不会重复覆盖结果。下一次几何离地高度再次达到 `100 ft` 时，再次清空 `lcdLR` 并等待下一次接地。飞行开始、飞机重载、飞行结束、断线、异常、手动断开和程序关闭时，`lcdLR` 均恢复为 `-----`。
 
 ---
 
@@ -401,7 +453,7 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 | --- | --- |
 | `SimConnect_Open` 返回 `E_FAIL`（模拟器没运行） | 正常，1 秒后继续重试，界面停在 `Waiting MFS...` |
 | `SimConnect_Open` 返回其他错误（异常情况） | 停止重试，界面复位回 `Standby...` 并显示错误 |
-| `SIMCONNECT_RECV_ID_QUIT`（模拟器退出、连接断开） | **自动重连**：关掉当前句柄但保持重试，界面停在 `Waiting MFS...`（按钮仍是 `Disconn`），模拟器重新起来后自动连上，并自动重新订阅飞机 / 飞行事件 |
+| `SIMCONNECT_RECV_ID_QUIT`（模拟器退出、连接断开） | **自动重连**：关闭当前枚举窗口和句柄，但保持重试，界面停在 `Waiting MFS...`（按钮仍是 `Disconn`），模拟器重新起来后自动连上，并自动重新订阅飞机 / 飞行事件 |
 | `SIMCONNECT_RECV_ID_EXCEPTION` | SDK 线程先把错误码报给界面，不立即断开；用户确认错误框后由主线程执行断开操作 |
 | 用户手点 `Disconn` | 停止重试，界面复位回 `Standby...` |
 
@@ -421,7 +473,7 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 
 - `pbtnFolder` 的行为（初始状态、点击后做什么）
 - 飞机识别：现在只有 `AircraftLoaded` 的文件路径，要显示机型 / 做按机型匹配，得读 `TITLE`、`ATC MODEL` 这类 SimVar
-- 事件发送流程（按键 → 匹配 → `SetInputEvent`）；旋钮的 `Inc / Dec` 分支受第 1.4 节限制，不能假定所有事件都能通过父 Hash 发送
+- 正式事件发送流程（按键 → 匹配 → `SetInputEvent`）；当前仅有第 1.5 节的浮点测试接口，旋钮的 `Inc / Dec` 分支受第 1.4 节限制，不能假定所有事件都能通过父 Hash 发送
 - 配置文件的读写与按机型切换
 - 界面文案定稿：`Connected` / `Aircraft Loaded` / `Sim Error` 目前都是占位
 
@@ -484,3 +536,17 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 | 2026-09-22 | v3.12 | `TWListem` 按 Hash 通知频率自适应折叠：1 秒内达到 8 条时折叠，降到 4 条或更少时恢复逐条插入 |
 | 2026-09-22 | v3.13 | `FLIGHT_END` 或 `onSimError` 发生时主动关闭 `DialogEnum`，并沿用模态返回后的流程取消输入事件监听 |
 | 2026-09-22 | v3.14 | 记录 SF50 旋钮限制：父级 InputEvent 的 Hash / Value 不包含 `Inc` / `Dec` 方向，当前 SimConnect 无法枚举或反查这些内部分支 Hash |
+| 2026-09-22 | v3.15 | 修复模拟器连接丢失时未关闭 `DialogEnum` 的问题；连接丢失会主动关闭枚举窗口，并沿用模态返回后的流程取消输入事件监听 |
+| 2026-09-22 | v3.16 | 新增 `DialogTest` 浮点 InputEvent 测试：Hash 数字校验、SDK 线程发送，以及与 `DialogEnum` 一致的飞行状态和异常退出逻辑 |
+| 2026-09-22 | v3.17 | `DialogEnum` 新增 `btnTest`，通过主窗口打开共享的 `DialogTest`；支持嵌套模态返回，并沿用飞行结束、异常和连接丢失时的双窗口退出逻辑 |
+| 2026-09-22 | v3.18 | `DialogTest` 新增 `btnGet` 浮点 InputEvent 读取；字符串类型弹出英文提示；从 `DialogEnum` 打开测试窗口时改为非模态，支持两个窗口同时操作 |
+| 2026-09-22 | v3.19 | 新增 `RADIO HEIGHT` 周期读取：在 SDK 工作线程读取并更新 `lcdRA`；无有效数据或机型不支持时显示 `----`，退出和状态切换时停止请求并复位 |
+| 2026-09-22 | v3.20 | 修复 `FLIGHT_START` 与 `AircraftLoaded` 到达顺序不固定导致无线电高度请求未启动的问题；以 `FLIGHT_START` 作为初始启动点，并保留 `AircraftLoaded` 触发 |
+| 2026-09-22 | v3.21 | 调整无线电高度显示：隐藏小数、按 5 英尺向上取整，超过 2500 英尺显示 `++++` |
+| 2026-09-22 | v3.22 | 新增接地率读取：使用几何离地高度确认起飞，接地时读取 `PLANE TOUCHDOWN NORMAL VELOCITY`，再次起飞后清空旧结果并重新记录 |
+| 2026-09-22 | v3.23 | 接地率与无线电高度均改为必须在对应 `ckb` 勾选且收到 `AircraftLoaded` 后才启动；接地率不依赖无线电高度 |
+| 2026-09-22 | v3.24 | 接地率改用 `PLANE ALT ABOVE GROUND` 判断离地，不再依赖 `RADIO HEIGHT`；RA 与接地率改为独立数据请求 |
+| 2026-09-22 | v3.25 | 明确 `100 ft` 仅用于确认起飞并复位 `lcdLR`；接地率直接读取 `PLANE TOUCHDOWN NORMAL VELOCITY`，不使用 100 ft 参与数值计算 |
+| 2026-09-22 | v3.26 | 接地率显示统一增加负号；兼容 SimVar 返回正负号方向差异，避免显示双负号 |
+| 2026-09-22 | v3.27 | 新增 RA 高度异步语音播报；使用原始 `RADIO HEIGHT` 下降穿越阈值触发，起飞不播报，各高度使用独立音效允许重叠播放 |
+| 2026-09-22 | v3.28 | 明确所有 RA 播报阈值均使用独立音效，下降过快时任意多个高度播报都允许同时重叠 |

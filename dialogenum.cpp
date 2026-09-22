@@ -23,6 +23,11 @@ DialogEnum::~DialogEnum()
     delete ui;
 }
 
+void DialogEnum::on_btnTest_clicked()
+{
+    emit testRequested();
+}
+
 void DialogEnum::initUI()
 {
     enumAllItems.clear();
