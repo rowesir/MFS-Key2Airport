@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'dialogenum.ui'
 **
-** Created by: Qt User Interface Compiler version 6.7.1
+** Created by: Qt User Interface Compiler version 6.8.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -70,7 +70,7 @@ public:
         font.setPointSize(10);
         btnTest->setFont(font);
         QIcon icon;
-        icon.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Normal, QIcon::Off);
+        icon.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
         btnTest->setIcon(icon);
 
         horizontalLayout->addWidget(btnTest);

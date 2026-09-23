@@ -1,3 +1,5 @@
+debug/configexecutor.o
+debug/configmanager.o
 debug/dialogenum.o
 debug/dialogtest.o
 debug/directinputlistener.o
@@ -6,6 +8,7 @@ debug/main.o
 debug/simconnectclient.o
 debug/widget.o
 debug/qrc_Icons.o
+debug/moc_configexecutor.o
 debug/moc_dialogenum.o
 debug/moc_dialogtest.o
 debug/moc_directinputlistener.o

@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'widget.ui'
 **
-** Created by: Qt User Interface Compiler version 6.7.1
+** Created by: Qt User Interface Compiler version 6.8.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -31,13 +31,6 @@ class Ui_Widget
 {
 public:
     QGridLayout *gridLayout_4;
-    QGroupBox *groupBox;
-    QGridLayout *gridLayout;
-    QComboBox *cbConfig;
-    QPushButton *pbtnFolder;
-    QCheckBox *ckbAuto;
-    QLabel *lbInfo;
-    QPushButton *pbtnConnect;
     QGroupBox *groupBox_2;
     QVBoxLayout *verticalLayout;
     QLabel *lbDetail;
@@ -59,6 +52,16 @@ public:
     QLabel *label_3;
     QLabel *lbPage;
     QSpacerItem *horizontalSpacer_3;
+    QGroupBox *groupBox;
+    QGridLayout *gridLayout;
+    QHBoxLayout *horizontalLayout_5;
+    QComboBox *cbConfig;
+    QPushButton *pbtnReload;
+    QSpacerItem *horizontalSpacer_4;
+    QPushButton *pbtnFolder;
+    QCheckBox *ckbAuto;
+    QLabel *lbInfo;
+    QPushButton *pbtnConnect;
 
     void setupUi(QWidget *Widget)
     {
@@ -69,77 +72,12 @@ public:
         Widget->setMaximumSize(QSize(388, 394));
         gridLayout_4 = new QGridLayout(Widget);
         gridLayout_4->setObjectName("gridLayout_4");
-        groupBox = new QGroupBox(Widget);
-        groupBox->setObjectName("groupBox");
-        groupBox->setMinimumSize(QSize(370, 130));
-        groupBox->setMaximumSize(QSize(370, 130));
-        QFont font;
-        font.setPointSize(10);
-        groupBox->setFont(font);
-        gridLayout = new QGridLayout(groupBox);
-        gridLayout->setObjectName("gridLayout");
-        gridLayout->setContentsMargins(6, 6, 6, 8);
-        cbConfig = new QComboBox(groupBox);
-        cbConfig->setObjectName("cbConfig");
-        cbConfig->setMinimumSize(QSize(240, 32));
-        cbConfig->setMaximumSize(QSize(240, 32));
-        QFont font1;
-        font1.setPointSize(12);
-        cbConfig->setFont(font1);
-
-        gridLayout->addWidget(cbConfig, 0, 0, 1, 1);
-
-        pbtnFolder = new QPushButton(groupBox);
-        pbtnFolder->setObjectName("pbtnFolder");
-        pbtnFolder->setMinimumSize(QSize(108, 32));
-        pbtnFolder->setMaximumSize(QSize(108, 32));
-        pbtnFolder->setFont(font1);
-        QIcon icon;
-        icon.addFile(QString::fromUtf8(":/Resoure/OpenFile.png"), QSize(), QIcon::Normal, QIcon::Off);
-        pbtnFolder->setIcon(icon);
-        pbtnFolder->setIconSize(QSize(20, 20));
-
-        gridLayout->addWidget(pbtnFolder, 0, 1, 1, 1);
-
-        ckbAuto = new QCheckBox(groupBox);
-        ckbAuto->setObjectName("ckbAuto");
-        QFont font2;
-        font2.setPointSize(11);
-        ckbAuto->setFont(font2);
-
-        gridLayout->addWidget(ckbAuto, 1, 0, 1, 2);
-
-        lbInfo = new QLabel(groupBox);
-        lbInfo->setObjectName("lbInfo");
-        lbInfo->setMinimumSize(QSize(0, 32));
-        lbInfo->setMaximumSize(QSize(16777215, 32));
-        lbInfo->setFont(font1);
-
-        gridLayout->addWidget(lbInfo, 2, 0, 1, 1);
-
-        pbtnConnect = new QPushButton(groupBox);
-        pbtnConnect->setObjectName("pbtnConnect");
-        pbtnConnect->setMinimumSize(QSize(108, 32));
-        pbtnConnect->setMaximumSize(QSize(108, 32));
-        QFont font3;
-        font3.setFamilies({QString::fromUtf8("Microsoft Sans Serif")});
-        font3.setPointSize(12);
-        font3.setBold(true);
-        pbtnConnect->setFont(font3);
-        QIcon icon1;
-        icon1.addFile(QString::fromUtf8(":/Resoure/CoilBalck.png"), QSize(), QIcon::Normal, QIcon::Off);
-        pbtnConnect->setIcon(icon1);
-        pbtnConnect->setIconSize(QSize(18, 18));
-
-        gridLayout->addWidget(pbtnConnect, 2, 1, 1, 1);
-
-
-        gridLayout_4->addWidget(groupBox, 0, 0, 1, 1);
-
         groupBox_2 = new QGroupBox(Widget);
         groupBox_2->setObjectName("groupBox_2");
         groupBox_2->setMinimumSize(QSize(370, 120));
         groupBox_2->setMaximumSize(QSize(370, 120));
+        QFont font;
+        font.setPointSize(10);
         groupBox_2->setFont(font);
         verticalLayout = new QVBoxLayout(groupBox_2);
         verticalLayout->setObjectName("verticalLayout");
@@ -148,10 +86,10 @@ public:
         lbDetail->setObjectName("lbDetail");
         lbDetail->setMinimumSize(QSize(0, 32));
         lbDetail->setMaximumSize(QSize(16777215, 32));
-        QFont font4;
-        font4.setPointSize(12);
-        font4.setBold(true);
-        lbDetail->setFont(font4);
+        QFont font1;
+        font1.setPointSize(12);
+        font1.setBold(true);
+        lbDetail->setFont(font1);
 
         verticalLayout->addWidget(lbDetail);
 
@@ -169,10 +107,12 @@ public:
         pbtnEnum->setObjectName("pbtnEnum");
         pbtnEnum->setMinimumSize(QSize(80, 30));
         pbtnEnum->setMaximumSize(QSize(80, 30));
-        pbtnEnum->setFont(font1);
-        QIcon icon2;
-        icon2.addFile(QString::fromUtf8(":/Resoure/com.png"), QSize(), QIcon::Normal, QIcon::Off);
-        pbtnEnum->setIcon(icon2);
+        QFont font2;
+        font2.setPointSize(12);
+        pbtnEnum->setFont(font2);
+        QIcon icon;
+        icon.addFile(QString::fromUtf8(":/Resoure/com.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        pbtnEnum->setIcon(icon);
         pbtnEnum->setIconSize(QSize(20, 20));
 
         horizontalLayout_4->addWidget(pbtnEnum);
@@ -185,10 +125,10 @@ public:
         pbtnTest->setObjectName("pbtnTest");
         pbtnTest->setMinimumSize(QSize(80, 30));
         pbtnTest->setMaximumSize(QSize(80, 30));
-        pbtnTest->setFont(font1);
-        QIcon icon3;
-        icon3.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Normal, QIcon::Off);
-        pbtnTest->setIcon(icon3);
+        pbtnTest->setFont(font2);
+        QIcon icon1;
+        icon1.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        pbtnTest->setIcon(icon1);
         pbtnTest->setIconSize(QSize(20, 20));
 
         horizontalLayout_4->addWidget(pbtnTest);
@@ -213,7 +153,9 @@ public:
         ckbRA->setObjectName("ckbRA");
         ckbRA->setMinimumSize(QSize(220, 20));
         ckbRA->setMaximumSize(QSize(220, 20));
-        ckbRA->setFont(font2);
+        QFont font3;
+        font3.setPointSize(11);
+        ckbRA->setFont(font3);
 
         horizontalLayout->addWidget(ckbRA);
 
@@ -221,7 +163,7 @@ public:
         ckbLR->setObjectName("ckbLR");
         ckbLR->setMinimumSize(QSize(120, 20));
         ckbLR->setMaximumSize(QSize(120, 20));
-        ckbLR->setFont(font2);
+        ckbLR->setFont(font3);
 
         horizontalLayout->addWidget(ckbLR);
 
@@ -235,10 +177,10 @@ public:
         lcdRA->setMinimumSize(QSize(90, 40));
         lcdRA->setMaximumSize(QSize(90, 40));
         lcdRA->setSizeIncrement(QSize(120, 40));
-        QFont font5;
-        font5.setPointSize(11);
-        font5.setBold(false);
-        lcdRA->setFont(font5);
+        QFont font4;
+        font4.setPointSize(11);
+        font4.setBold(false);
+        lcdRA->setFont(font4);
         lcdRA->setSmallDecimalPoint(true);
         lcdRA->setDigitCount(4);
         lcdRA->setMode(QLCDNumber::Mode::Dec);
@@ -255,7 +197,7 @@ public:
         lcdLR->setMinimumSize(QSize(120, 40));
         lcdLR->setMaximumSize(QSize(120, 40));
         lcdLR->setSizeIncrement(QSize(120, 40));
-        lcdLR->setFont(font5);
+        lcdLR->setFont(font4);
         lcdLR->setSmallDecimalPoint(true);
         lcdLR->setDigitCount(5);
         lcdLR->setMode(QLCDNumber::Mode::Dec);
@@ -275,7 +217,7 @@ public:
         label_3->setObjectName("label_3");
         label_3->setMinimumSize(QSize(100, 20));
         label_3->setMaximumSize(QSize(100, 20));
-        label_3->setFont(font5);
+        label_3->setFont(font4);
 
         horizontalLayout_3->addWidget(label_3);
 
@@ -284,6 +226,7 @@ public:
         lbPage->setMinimumSize(QSize(60, 20));
         lbPage->setMaximumSize(QSize(60, 20));
         lbPage->setSizeIncrement(QSize(90, 20));
+        lbPage->setFont(font3);
 
         horizontalLayout_3->addWidget(lbPage);
 
@@ -294,6 +237,87 @@ public:
 
         gridLayout_4->addLayout(horizontalLayout_3, 3, 0, 1, 1);
 
+        groupBox = new QGroupBox(Widget);
+        groupBox->setObjectName("groupBox");
+        groupBox->setMinimumSize(QSize(370, 130));
+        groupBox->setMaximumSize(QSize(370, 130));
+        groupBox->setFont(font);
+        gridLayout = new QGridLayout(groupBox);
+        gridLayout->setObjectName("gridLayout");
+        gridLayout->setContentsMargins(6, 6, 6, 6);
+        horizontalLayout_5 = new QHBoxLayout();
+        horizontalLayout_5->setObjectName("horizontalLayout_5");
+        cbConfig = new QComboBox(groupBox);
+        cbConfig->setObjectName("cbConfig");
+        cbConfig->setMinimumSize(QSize(180, 32));
+        cbConfig->setMaximumSize(QSize(180, 32));
+        cbConfig->setFont(font2);
+
+        horizontalLayout_5->addWidget(cbConfig);
+
+        pbtnReload = new QPushButton(groupBox);
+        pbtnReload->setObjectName("pbtnReload");
+        pbtnReload->setMinimumSize(QSize(32, 32));
+        pbtnReload->setMaximumSize(QSize(32, 32));
+        QIcon icon2;
+        icon2.addFile(QString::fromUtf8(":/Resoure/Refresh.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        pbtnReload->setIcon(icon2);
+        pbtnReload->setIconSize(QSize(22, 22));
+
+        horizontalLayout_5->addWidget(pbtnReload);
+
+        horizontalSpacer_4 = new QSpacerItem(13, 17, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        horizontalLayout_5->addItem(horizontalSpacer_4);
+
+        pbtnFolder = new QPushButton(groupBox);
+        pbtnFolder->setObjectName("pbtnFolder");
+        pbtnFolder->setMinimumSize(QSize(108, 32));
+        pbtnFolder->setMaximumSize(QSize(108, 32));
+        pbtnFolder->setFont(font2);
+        QIcon icon3;
+        icon3.addFile(QString::fromUtf8(":/Resoure/OpenFile.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        pbtnFolder->setIcon(icon3);
+        pbtnFolder->setIconSize(QSize(20, 20));
+
+        horizontalLayout_5->addWidget(pbtnFolder);
+
+
+        gridLayout->addLayout(horizontalLayout_5, 0, 0, 1, 2);
+
+        ckbAuto = new QCheckBox(groupBox);
+        ckbAuto->setObjectName("ckbAuto");
+        ckbAuto->setFont(font3);
+
+        gridLayout->addWidget(ckbAuto, 1, 0, 1, 2);
+
+        lbInfo = new QLabel(groupBox);
+        lbInfo->setObjectName("lbInfo");
+        lbInfo->setMinimumSize(QSize(0, 32));
+        lbInfo->setMaximumSize(QSize(16777215, 32));
+        lbInfo->setFont(font2);
+
+        gridLayout->addWidget(lbInfo, 2, 0, 1, 1);
+
+        pbtnConnect = new QPushButton(groupBox);
+        pbtnConnect->setObjectName("pbtnConnect");
+        pbtnConnect->setMinimumSize(QSize(108, 32));
+        pbtnConnect->setMaximumSize(QSize(108, 32));
+        QFont font5;
+        font5.setFamilies({QString::fromUtf8("Microsoft Sans Serif")});
+        font5.setPointSize(12);
+        font5.setBold(true);
+        pbtnConnect->setFont(font5);
+        QIcon icon4;
+        icon4.addFile(QString::fromUtf8(":/Resoure/CoilBalck.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        pbtnConnect->setIcon(icon4);
+        pbtnConnect->setIconSize(QSize(18, 18));
+
+        gridLayout->addWidget(pbtnConnect, 2, 1, 1, 1);
+
+
+        gridLayout_4->addWidget(groupBox, 0, 0, 1, 1);
+
 
         retranslateUi(Widget);
 
@@ -303,11 +327,6 @@ public:
     void retranslateUi(QWidget *Widget)
     {
         Widget->setWindowTitle(QCoreApplication::translate("Widget", "Widget", nullptr));
-        groupBox->setTitle(QCoreApplication::translate("Widget", "Setting", nullptr));
-        pbtnFolder->setText(QCoreApplication::translate("Widget", "Folder", nullptr));
-        ckbAuto->setText(QCoreApplication::translate("Widget", "Auto-Switching Configuration", nullptr));
-        lbInfo->setText(QCoreApplication::translate("Widget", "Standby...", nullptr));
-        pbtnConnect->setText(QCoreApplication::translate("Widget", "Connect", nullptr));
         groupBox_2->setTitle(QCoreApplication::translate("Widget", "Detail", nullptr));
         lbDetail->setText(QCoreApplication::translate("Widget", "CTRL+E", nullptr));
         pbtnEnum->setText(QCoreApplication::translate("Widget", "Enum", nullptr));
@@ -317,6 +336,12 @@ public:
         ckbLR->setText(QCoreApplication::translate("Widget", "Landing Rate", nullptr));
         label_3->setText(QCoreApplication::translate("Widget", "Config Page", nullptr));
         lbPage->setText(QString());
+        groupBox->setTitle(QCoreApplication::translate("Widget", "Setting", nullptr));
+        pbtnReload->setText(QString());
+        pbtnFolder->setText(QCoreApplication::translate("Widget", "Folder", nullptr));
+        ckbAuto->setText(QCoreApplication::translate("Widget", "Auto-Switching Configuration", nullptr));
+        lbInfo->setText(QCoreApplication::translate("Widget", "Standby...", nullptr));
+        pbtnConnect->setText(QCoreApplication::translate("Widget", "Connect", nullptr));
     } // retranslateUi
 
 };

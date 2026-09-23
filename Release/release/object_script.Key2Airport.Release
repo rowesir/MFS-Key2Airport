@@ -1,3 +1,5 @@
+release/configexecutor.o
+release/configmanager.o
 release/dialogenum.o
 release/dialogtest.o
 release/directinputlistener.o
@@ -6,6 +8,7 @@ release/main.o
 release/simconnectclient.o
 release/widget.o
 release/qrc_Icons.o
+release/moc_configexecutor.o
 release/moc_dialogenum.o
 release/moc_dialogtest.o
 release/moc_directinputlistener.o

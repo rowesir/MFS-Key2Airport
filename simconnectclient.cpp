@@ -19,6 +19,8 @@ const SIMCONNECT_DATA_DEFINITION_ID kDefinitionRadioHeight = 1;
 const SIMCONNECT_DATA_REQUEST_ID kRequestRadioHeight = 100;
 const SIMCONNECT_DATA_DEFINITION_ID kDefinitionLandingRate = 2;
 const SIMCONNECT_DATA_REQUEST_ID kRequestLandingRate = 101;
+const SIMCONNECT_DATA_DEFINITION_ID kDefinitionAircraftModel = 3;
+const SIMCONNECT_DATA_REQUEST_ID kRequestAircraftModel = 102;
 const DWORD kRadioHeightIntervalFrames = 5;
 const double kLandingRateAirborneHeightFeet = 100.0;
 
@@ -127,6 +129,7 @@ void SimConnectClient::enumerateInputEvents()
     inputEventParamRequests.clear();
     subscribedInputEvents.clear();
     inputEventGetRequests.clear();
+    configInputEventGetRequests.clear();
 
     const HRESULT result = SimConnect_EnumerateInputEvents(handle, kRequestEnumerateInputEvents);
     if (FAILED(result)) {
@@ -165,7 +168,9 @@ void SimConnectClient::getInputEvent(quint64 hash)
     const HRESULT result = SimConnect_GetInputEvent(handle, requestId, UINT64(hash));
     if (FAILED(result)) {
         inputEventGetRequests.remove(requestId);
-        emit simError(quint32(result));
+        // A failed test/config request must not become a global SimConnect
+        // error. The configuration executor can stop its current sequence.
+        return;
     }
 }
 
@@ -177,7 +182,79 @@ void SimConnectClient::sendInputEvent(quint64 hash, double value)
     const HRESULT result =
         SimConnect_SetInputEvent(handle, UINT64(hash), DWORD(sizeof(value)), &value);
     if (FAILED(result))
-        emit simError(quint32(result));
+        return;
+}
+
+void SimConnectClient::getInputEventForConfig(quint64 executionId, quint64 hash)
+{
+    if (!handle || !flightActive) {
+        emit configInputEventValueReceived(executionId, false, 0.0);
+        return;
+    }
+
+    SIMCONNECT_DATA_REQUEST_ID requestId = nextInputEventRequestId++;
+    if (nextInputEventRequestId == 0)
+        nextInputEventRequestId = 2;
+
+    configInputEventGetRequests.insert(requestId, qMakePair(executionId, hash));
+    const HRESULT result = SimConnect_GetInputEvent(handle, requestId, UINT64(hash));
+    if (FAILED(result)) {
+        configInputEventGetRequests.remove(requestId);
+        emit configInputEventValueReceived(executionId, false, 0.0);
+    }
+}
+
+void SimConnectClient::sendInputEventForConfig(quint64 executionId, quint64 hash, double value)
+{
+    if (!handle || !flightActive) {
+        configInputEventSetPending = false;
+        emit configInputEventSetFinished(executionId, false);
+        return;
+    }
+
+    const HRESULT result =
+        SimConnect_SetInputEvent(handle, UINT64(hash), DWORD(sizeof(value)), &value);
+    if (FAILED(result)) {
+        configInputEventSetPending = false;
+        emit configInputEventSetFinished(executionId, false);
+        return;
+    }
+
+    // SetInputEvent reports asynchronous failures through the SimConnect
+    // exception stream. Keep the execution id until the next set so that
+    // such an exception can stop the current configuration sequence.
+    configInputEventSetExecutionId = executionId;
+    configInputEventSetPending = true;
+    emit configInputEventSetFinished(executionId, true);
+}
+
+void SimConnectClient::requestAircraftModel()
+{
+    if (!handle || !flightActive || aircraftModelRequested)
+        return;
+
+    if (!aircraftModelDefinitionAdded) {
+        const HRESULT definitionResult =
+            SimConnect_AddToDataDefinition(handle, kDefinitionAircraftModel, "ATC MODEL", "",
+                                           SIMCONNECT_DATATYPE_STRING64);
+        if (FAILED(definitionResult)) {
+            emit aircraftModelUnavailable();
+            return;
+        }
+        aircraftModelDefinitionAdded = true;
+    }
+
+    const HRESULT requestResult =
+        SimConnect_RequestDataOnSimObject(handle, kRequestAircraftModel,
+                                          kDefinitionAircraftModel,
+                                          SIMCONNECT_OBJECT_ID_USER_AIRCRAFT,
+                                          SIMCONNECT_PERIOD_ONCE);
+    if (FAILED(requestResult)) {
+        emit aircraftModelUnavailable();
+        return;
+    }
+
+    aircraftModelRequested = true;
 }
 
 void SimConnectClient::startRadioHeightReading()
@@ -326,6 +403,11 @@ void SimConnectClient::closeConnection()
     inputEventParamRequests.clear();
     subscribedInputEvents.clear();
     inputEventGetRequests.clear();
+    configInputEventGetRequests.clear();
+    configInputEventSetPending = false;
+    configInputEventSetExecutionId = 0;
+    aircraftModelRequested = false;
+    aircraftModelDefinitionAdded = false;
     radioHeightRequested = false;
     landingRateRequested = false;
     radioHeightDefinitionAdded = false;
@@ -379,6 +461,11 @@ void SimConnectClient::handleQuit()
     inputEventParamRequests.clear();
     subscribedInputEvents.clear();
     inputEventGetRequests.clear();
+    configInputEventGetRequests.clear();
+    configInputEventSetPending = false;
+    configInputEventSetExecutionId = 0;
+    aircraftModelRequested = false;
+    aircraftModelDefinitionAdded = false;
 
     if (handle)
     {
@@ -398,6 +485,34 @@ void SimConnectClient::handleQuit()
 void SimConnectClient::handleException(DWORD code)
 {
     bool handled = false;
+
+    if (isInputEventException(code)) {
+        const auto configRequests = configInputEventGetRequests;
+        configInputEventGetRequests.clear();
+        for (const auto &request : configRequests)
+            emit configInputEventValueReceived(request.first, false, 0.0);
+        const auto testRequests = inputEventGetRequests;
+        inputEventGetRequests.clear();
+        for (const auto &request : testRequests)
+            emit inputEventValueUnavailable(request);
+        if (configInputEventSetPending) {
+            const quint64 executionId = configInputEventSetExecutionId;
+            configInputEventSetPending = false;
+            emit configInputEventSetFinished(executionId, false);
+        }
+        // Input-event failures are local to the requested event.  They must
+        // not tear down the connection or show the global error dialog.
+        return;
+    }
+
+    if (aircraftModelRequested && isRadioHeightException(code)) {
+        aircraftModelRequested = false;
+        if (handle)
+            SimConnect_ClearDataDefinition(handle, kDefinitionAircraftModel);
+        aircraftModelDefinitionAdded = false;
+        emit aircraftModelUnavailable();
+        handled = true;
+    }
 
     if (radioHeightReading && radioHeightAwaitingFirstData && isRadioHeightException(code)) {
         stopRadioHeightRequest();
@@ -434,6 +549,7 @@ void SimConnectClient::handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event)
         if (!flightActive)
         {
             flightActive = true;
+            aircraftModelRequested = false;
             emit flightStarted();
         }
         break;
@@ -445,6 +561,10 @@ void SimConnectClient::handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event)
             stopRadioHeightReading();
             stopLandingRateReading();
             flightActive = false;
+            aircraftModelRequested = false;
+            configInputEventGetRequests.clear();
+            configInputEventSetPending = false;
+            configInputEventSetExecutionId = 0;
             emit flightEnded();
         }
         break;
@@ -469,6 +589,12 @@ bool SimConnectClient::isRadioHeightException(DWORD code) const
            code == SIMCONNECT_EXCEPTION_DATA_ERROR ||
            code == SIMCONNECT_EXCEPTION_DEFINITION_ERROR ||
            code == SIMCONNECT_EXCEPTION_DATUM_ID;
+}
+
+bool SimConnectClient::isInputEventException(DWORD code) const
+{
+    return code == SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED ||
+           code == SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED;
 }
 
 int SimConnectClient::inputEventParamSize(const QString &param)
@@ -619,6 +745,32 @@ void CALLBACK SimConnectClient::dispatchProc(SIMCONNECT_RECV *data, DWORD cbData
             break;
         }
 
+        if (simObjectData->dwRequestID == kRequestAircraftModel &&
+            simObjectData->dwDefineID == kDefinitionAircraftModel) {
+            client->aircraftModelRequested = false;
+            if (simObjectData->dwDefineCount < 1) {
+                emit client->aircraftModelUnavailable();
+                break;
+            }
+
+            const size_t rawSize = cbData > valueOffset ? cbData - valueOffset : 0;
+            if (rawSize == 0) {
+                emit client->aircraftModelUnavailable();
+                break;
+            }
+
+            const size_t stringSize = std::min(rawSize, size_t(64));
+            size_t stringLength = 0;
+            while (stringLength < stringSize && rawValue[stringLength] != '\0')
+                ++stringLength;
+            const QString model = QString::fromUtf8(rawValue, int(stringLength)).trimmed();
+            if (model.isEmpty())
+                emit client->aircraftModelUnavailable();
+            else
+                emit client->aircraftModelReceived(model);
+            break;
+        }
+
         if (simObjectData->dwRequestID != kRequestLandingRate ||
             simObjectData->dwDefineID != kDefinitionLandingRate ||
             !client->landingRateReading || simObjectData->dwDefineCount < 3)
@@ -674,6 +826,35 @@ void CALLBACK SimConnectClient::dispatchProc(SIMCONNECT_RECV *data, DWORD cbData
     {
         const SIMCONNECT_RECV_GET_INPUT_EVENT *inputEvent =
             static_cast<const SIMCONNECT_RECV_GET_INPUT_EVENT *>(data);
+        const auto configRequest =
+            client->configInputEventGetRequests.constFind(inputEvent->dwRequestID);
+        if (configRequest != client->configInputEventGetRequests.constEnd()) {
+            const quint64 executionId = configRequest->first;
+            client->configInputEventGetRequests.remove(inputEvent->dwRequestID);
+
+            if (inputEvent->eType != SIMCONNECT_INPUT_EVENT_TYPE_DOUBLE) {
+                emit client->configInputEventValueReceived(executionId, false, 0.0);
+                break;
+            }
+
+            const char *rawValue = reinterpret_cast<const char *>(&inputEvent->Value);
+            const size_t valueOffset = reinterpret_cast<const char *>(&inputEvent->Value) -
+                                       reinterpret_cast<const char *>(inputEvent);
+            const size_t rawSize = cbData > valueOffset ? cbData - valueOffset : 0;
+            if (rawSize < sizeof(double)) {
+                emit client->configInputEventValueReceived(executionId, false, 0.0);
+                break;
+            }
+
+            double value = 0.0;
+            std::memcpy(&value, rawValue, sizeof(value));
+            if (!std::isfinite(value))
+                emit client->configInputEventValueReceived(executionId, false, 0.0);
+            else
+                emit client->configInputEventValueReceived(executionId, true, value);
+            break;
+        }
+
         const auto request = client->inputEventGetRequests.constFind(inputEvent->dwRequestID);
         if (request == client->inputEventGetRequests.constEnd())
             break;

@@ -219,7 +219,7 @@ Value: 0
 SimConnect_SetInputEvent(handle, hash, sizeof(double), &value);
 ```
 
-当前测试只支持单个浮点值，使用 `Hash + 8 字节 double`。发送失败沿用现有 `simError` 错误处理。
+当前测试只支持单个浮点值，使用 `Hash + 8 字节 double`。独立测试调用不因 `GetInputEvent` / `SetInputEvent` 的直接返回错误弹出错误框或退出程序；调用失败只结束本次调用。配置规则执行时再由配置执行器根据该调用结果停止当前按键行为的后续规则。
 
 读取请求通过 Qt 排队投递到 SDK 线程，在 `SimConnectClient` 中调用 `SimConnect_GetInputEvent`。该 API 是异步的，回包中的 `dwRequestID` 用于映射原始 Hash；字符串类型不会写入 `sbValue`。
 

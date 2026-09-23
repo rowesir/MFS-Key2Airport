@@ -1,4 +1,5 @@
 QT       += core gui multimedia
+RC_ICONS = icon.ico
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -9,6 +10,8 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    configexecutor.cpp \
+    configmanager.cpp \
     dialogenum.cpp \
     dialogtest.cpp \
     directinputlistener.cpp \
@@ -18,6 +21,8 @@ SOURCES += \
     widget.cpp
 
 HEADERS += \
+    configexecutor.h \
+    configmanager.h \
     dialogenum.h \
     dialogtest.h \
     directinputlistener.h \

@@ -1,9 +1,14 @@
 #include "widget.h"
 #include "ui_widget.h"
+#include "configmanager.h"
 
 #include <QAbstractButton>
 #include <QCloseEvent>
 #include <QComboBox>
+#include <QDesktopServices>
+#include <QEvent>
+#include <QFileInfo>
+#include <QFont>
 #include <QIcon>
 #include <QMessageBox>
 #include <QSoundEffect>
@@ -49,6 +54,7 @@ Widget::Widget(QWidget *parent)
     inputListener->moveToThread(inputThread);
     directInputListener->moveToThread(inputThread);
     simClient->moveToThread(simThread);
+    configExecutor = new ConfigExecutor(simClient, this);
 
     connect(inputThread, &QThread::finished, inputListener, &QObject::deleteLater);
     connect(inputThread, &QThread::finished, directInputListener, &QObject::deleteLater);
@@ -69,6 +75,10 @@ Widget::Widget(QWidget *parent)
     connect(simClient, &SimConnectClient::connectionLost, this, &Widget::onSimConnectionLost);
     connect(simClient, &SimConnectClient::flightStarted, this, &Widget::onFlightStarted);
     connect(simClient, &SimConnectClient::aircraftLoaded, this, &Widget::onAircraftLoaded);
+    connect(simClient, &SimConnectClient::aircraftModelReceived,
+            this, &Widget::onAircraftModelReceived);
+    connect(simClient, &SimConnectClient::aircraftModelUnavailable,
+            this, &Widget::onAircraftModelUnavailable);
     connect(simClient, &SimConnectClient::flightEnded, this, &Widget::onFlightEnded);
     connect(simClient, &SimConnectClient::radioHeightReceived,
             this, &Widget::onRadioHeightReceived);
@@ -90,6 +100,12 @@ Widget::Widget(QWidget *parent)
             &dialogTest, &DialogTest::setInputEventValue);
     connect(simClient, &SimConnectClient::inputEventValueUnavailable,
             &dialogTest, &DialogTest::showInputEventValueUnavailable);
+    connect(simClient, &SimConnectClient::configInputEventValueReceived,
+            configExecutor, &ConfigExecutor::inputEventValueReceived);
+    connect(simClient, &SimConnectClient::configInputEventSetFinished,
+            configExecutor, &ConfigExecutor::inputEventSetFinished);
+    connect(configExecutor, &ConfigExecutor::pageChanged,
+            this, &Widget::onConfigPageChanged);
     connect(simClient, &SimConnectClient::simError, this, &Widget::onSimError);
 
     initUI();
@@ -128,6 +144,16 @@ bool Widget::nativeEvent(const QByteArray &eventType, void *message, qintptr *re
     return false;
 }
 
+bool Widget::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == ui->cbConfig && event->type() == QEvent::MouseButtonPress &&
+        !ui->ckbAuto->isChecked() && ui->cbConfig->isEnabled()) {
+        refreshConfigurationList();
+    }
+
+    return QWidget::eventFilter(watched, event);
+}
+
 void Widget::closeEvent(QCloseEvent *event)
 {
     if (connected && flightActive && !confirmFlightExit(QStringLiteral("close the application")))
@@ -143,6 +169,7 @@ void Widget::closeEvent(QCloseEvent *event)
 
 void Widget::initUI()
 {
+    initializeConfigurations();
     ui->cbConfig->clear();
     ui->cbConfig->setEnabled(false);
 
@@ -160,12 +187,114 @@ void Widget::initUI()
     ui->lcdLR->display(QStringLiteral("-----"));
     aircraftLoaded = false;
 
-    ui->lbPage->clear();
+    ui->cbConfig->installEventFilter(this);
+    onConfigPageChanged(0);
     ui->lbDetail->clear();
     ui->lbDetail->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     inputThread->start();
     simThread->start();
+}
+
+void Widget::initializeConfigurations()
+{
+    ConfigManager::ensureConfigDirectory();
+    availableConfigurationNames = ConfigManager::configurationNames();
+}
+
+void Widget::refreshConfigurationList()
+{
+    const QString currentName = ui->cbConfig->currentText();
+    availableConfigurationNames = ConfigManager::configurationNames();
+
+    ui->cbConfig->clear();
+    for (const QString &name : availableConfigurationNames)
+        ui->cbConfig->addItem(name, ConfigManager::configurationPath(name));
+
+    if (availableConfigurationNames.isEmpty())
+        return;
+
+    const int currentIndex = ui->cbConfig->findText(currentName);
+    ui->cbConfig->setCurrentIndex(currentIndex >= 0 ? currentIndex : 0);
+}
+
+void Widget::beginFlightConfiguration()
+{
+    if (!flightActive || !aircraftLoaded || configurationLoading || flightFeaturesStarted)
+        return;
+
+    configurationLoading = true;
+    configExecutor->clear();
+
+    if (ui->ckbAuto->isChecked()) {
+        ui->cbConfig->clear();
+        QMetaObject::invokeMethod(simClient, &SimConnectClient::requestAircraftModel,
+                                  Qt::QueuedConnection);
+        return;
+    }
+
+    const QString path = ui->cbConfig->currentData().toString();
+    AircraftConfiguration configuration;
+    if (!path.isEmpty() && ConfigManager::loadConfiguration(path, configuration)) {
+        finishFlightConfiguration(configuration);
+        return;
+    }
+
+    finishFlightConfigurationUnavailable();
+}
+
+void Widget::finishFlightConfiguration(const AircraftConfiguration &configuration)
+{
+    if (!flightActive || !aircraftLoaded)
+        return;
+
+    configurationLoading = false;
+    if (configuration.valid) {
+        configExecutor->setConfiguration(configuration);
+        ui->ckbRA->setChecked(configuration.radioHeight);
+        ui->ckbLR->setChecked(configuration.landingRate);
+        ui->lcdRA->setEnabled(configuration.radioHeight);
+        ui->lcdLR->setEnabled(configuration.landingRate);
+        if (!configuration.radioHeight) {
+            resetRadioHeightCallouts();
+            ui->lcdRA->display(QStringLiteral("----"));
+        }
+        if (!configuration.landingRate)
+            ui->lcdLR->display(QStringLiteral("-----"));
+    } else {
+        configExecutor->clear();
+    }
+    activateFlightFeatures();
+}
+
+void Widget::finishFlightConfigurationUnavailable()
+{
+    configurationLoading = false;
+    configExecutor->clear();
+    activateFlightFeatures();
+}
+
+void Widget::clearFlightConfiguration()
+{
+    configurationLoading = false;
+    flightFeaturesStarted = false;
+    configExecutor->clear();
+    if (ui->ckbAuto->isChecked())
+        ui->cbConfig->clear();
+}
+
+void Widget::activateFlightFeatures()
+{
+    if (!flightActive || !aircraftLoaded || flightFeaturesStarted)
+        return;
+
+    flightFeaturesStarted = true;
+    if (ui->ckbRA->isChecked())
+        QMetaObject::invokeMethod(simClient, &SimConnectClient::startRadioHeightReading,
+                                  Qt::QueuedConnection);
+    if (ui->ckbLR->isChecked())
+        QMetaObject::invokeMethod(simClient, &SimConnectClient::startLandingRateReading,
+                                  Qt::QueuedConnection);
 }
 
 void Widget::on_pbtnConnect_clicked()
@@ -195,11 +324,96 @@ void Widget::on_pbtnConnect_clicked()
         guard.keepDisabled(ui->pbtnTest);
         connected    = false;
         flightActive = false;
+        clearFlightConfiguration();
 
         resetConnectionUi();
 
         QMetaObject::invokeMethod(simClient, &SimConnectClient::disconnectFromSim, Qt::QueuedConnection);
     }
+}
+
+void Widget::on_pbtnFolder_clicked()
+{
+    ConfigManager::ensureConfigDirectory();
+    QDesktopServices::openUrl(QUrl::fromLocalFile(ConfigManager::configDirectoryPath()));
+}
+
+void Widget::on_pbtnReload_clicked()
+{
+    ControlGuard guard(this);
+
+    if (!flightActive || !aircraftLoaded || configurationLoading)
+        return;
+
+    const bool autoMode = ui->ckbAuto->isChecked();
+    const QString currentName = ui->cbConfig->currentText();
+
+    // Stop the current rule sequence first.  ConfigExecutor::clear() also
+    // invalidates callbacks belonging to the old sequence, so a late
+    // SimConnect response cannot continue after the new configuration is set.
+    configExecutor->clear();
+    configurationLoading = false;
+    flightFeaturesStarted = false;
+
+    // Reloading may change the RA/LR switches in the JSON.  Stop the old
+    // subscriptions before applying the new configuration.
+    resetRadioHeight();
+    resetLandingRate();
+    // resetRadioHeight() clears this UI-side state as part of its normal
+    // reset path; the current flight itself is still active.
+    aircraftLoaded = true;
+
+    if (autoMode) {
+        // Normally automatic mode already has the aircraft model in the
+        // combo box.  If it does not, ask SimConnect again and let the same
+        // model-received path create/load the configuration.
+        if (currentName.trimmed().isEmpty()) {
+            configurationLoading = true;
+            QMetaObject::invokeMethod(simClient, &SimConnectClient::requestAircraftModel,
+                                      Qt::QueuedConnection);
+            return;
+        }
+
+        const QString path = ConfigManager::configurationPath(currentName);
+        if (!QFileInfo::exists(path))
+            ConfigManager::createDefaultConfiguration(currentName, path);
+
+        AircraftConfiguration configuration;
+        if (ConfigManager::loadConfiguration(path, configuration)) {
+            ui->cbConfig->clear();
+            ui->cbConfig->addItem(currentName, path);
+            ui->cbConfig->setCurrentIndex(0);
+            finishFlightConfiguration(configuration);
+        } else {
+            finishFlightConfigurationUnavailable();
+        }
+        return;
+    }
+
+    // Manual mode must rescan the directory because the selected file may
+    // have been removed since the last scan.  configurationNames() is sorted
+    // by ConfigManager, so index zero is the required fallback.
+    availableConfigurationNames = ConfigManager::configurationNames();
+    ui->cbConfig->clear();
+    for (const QString &name : availableConfigurationNames)
+        ui->cbConfig->addItem(name, ConfigManager::configurationPath(name));
+
+    if (availableConfigurationNames.isEmpty()) {
+        finishFlightConfigurationUnavailable();
+        return;
+    }
+
+    int selectedIndex = availableConfigurationNames.indexOf(currentName);
+    if (selectedIndex < 0)
+        selectedIndex = 0;
+    ui->cbConfig->setCurrentIndex(selectedIndex);
+
+    AircraftConfiguration configuration;
+    const QString path = ui->cbConfig->currentData().toString();
+    if (!path.isEmpty() && ConfigManager::loadConfiguration(path, configuration))
+        finishFlightConfiguration(configuration);
+    else
+        finishFlightConfigurationUnavailable();
 }
 
 void Widget::on_pbtnEnum_clicked()
@@ -371,6 +585,7 @@ void Widget::resetConnectionUi()
     resetLandingRate();
 
     ui->ckbAuto->setEnabled(true);
+    ui->cbConfig->setEnabled(!ui->ckbAuto->isChecked());
     ui->pbtnEnum->setEnabled(false);
     ui->pbtnTest->setEnabled(false);
 
@@ -387,6 +602,7 @@ void Widget::setInfoText(const QString &text, const QString &color)
 
 void Widget::onSimConnected()
 {
+    clearFlightConfiguration();
     resetRadioHeight();
     resetLandingRate();
 
@@ -404,6 +620,7 @@ void Widget::onSimDisconnected()
 
     connected    = false;
     flightActive = false;
+    clearFlightConfiguration();
     resetConnectionUi();
 }
 
@@ -417,6 +634,7 @@ void Widget::onSimConnectionLost()
     resetRadioHeight();
     resetLandingRate();
     flightActive = false;
+    clearFlightConfiguration();
     ui->pbtnEnum->setEnabled(false);
     ui->pbtnTest->setEnabled(false);
     setInfoText(QStringLiteral("Waiting MFS..."), QStringLiteral("#E68A00"));
@@ -424,22 +642,16 @@ void Widget::onSimConnectionLost()
 
 void Widget::onFlightStarted()
 {
-    const bool loadedBeforeFlightStart = aircraftLoaded;
+    clearFlightConfiguration();
     resetRadioHeight();
     resetLandingRate();
     flightActive = true;
-    // AircraftLoaded may arrive before or after FLIGHT_START.  Preserve an
-    // earlier load event, but otherwise wait for AircraftLoaded before
-    // starting either radio-height or landing-rate monitoring.
-    aircraftLoaded = loadedBeforeFlightStart;
-    if (aircraftLoaded) {
-        if (ui->ckbRA->isChecked())
-            QMetaObject::invokeMethod(simClient, &SimConnectClient::startRadioHeightReading,
-                                      Qt::QueuedConnection);
-        if (ui->ckbLR->isChecked())
-            QMetaObject::invokeMethod(simClient, &SimConnectClient::startLandingRateReading,
-                                      Qt::QueuedConnection);
-    }
+    // FLIGHT_START is the authoritative boundary for entering a flight.
+    // AircraftLoaded can also be emitted while browsing/loading aircraft in
+    // the main menu, so that event must not be used to establish the flight
+    // state before FLIGHT_START has arrived.
+    aircraftLoaded = true;
+    beginFlightConfiguration();
     ui->pbtnEnum->setEnabled(true);
     ui->pbtnTest->setEnabled(true);
     setInfoText(QStringLiteral("Aircraft Loaded"), QStringLiteral("#006400"));
@@ -449,17 +661,58 @@ void Widget::onAircraftLoaded(const QString &file)
 {
     Q_UNUSED(file)
 
+    // MSFS may report AircraftLoaded while the user is still in the main
+    // menu.  Only accept it after FLIGHT_START; the flight-start handler
+    // already establishes the initial aircraft state and this event is used
+    // here for a real in-flight aircraft reload/switch.
+    if (!flightActive)
+        return;
+
+    // A new aircraft invalidates the previous configuration and the current
+    // RA/LR subscriptions.  Reload the selected/aircraft-specific
+    // configuration for the new aircraft.
+    clearFlightConfiguration();
     resetRadioHeight();
     resetLandingRate();
     aircraftLoaded = true;
-    if (ui->ckbRA->isChecked())
-        QMetaObject::invokeMethod(simClient, &SimConnectClient::startRadioHeightReading,
-                                  Qt::QueuedConnection);
-    if (ui->ckbLR->isChecked())
-        QMetaObject::invokeMethod(simClient, &SimConnectClient::startLandingRateReading,
-                                  Qt::QueuedConnection);
+    beginFlightConfiguration();
+    ui->pbtnEnum->setEnabled(flightActive);
+    ui->pbtnTest->setEnabled(flightActive);
 
     setInfoText(QStringLiteral("Aircraft Loaded"), QStringLiteral("#006400"));
+}
+
+void Widget::onAircraftModelReceived(const QString &model)
+{
+    if (!configurationLoading || !flightActive || !aircraftLoaded || !ui->ckbAuto->isChecked())
+        return;
+
+    if (model.isEmpty() || model == QStringLiteral(".") || model == QStringLiteral("..") ||
+        model.contains(QLatin1Char('/')) || model.contains(QLatin1Char('\\')) ||
+        model.contains(QLatin1Char(':'))) {
+        finishFlightConfigurationUnavailable();
+        return;
+    }
+
+    const QString path = ConfigManager::configurationPath(model);
+    if (!QFileInfo::exists(path))
+        ConfigManager::createDefaultConfiguration(model, path);
+
+    AircraftConfiguration configuration;
+    if (ConfigManager::loadConfiguration(path, configuration)) {
+        ui->cbConfig->clear();
+        ui->cbConfig->addItem(model, path);
+        ui->cbConfig->setCurrentIndex(0);
+        finishFlightConfiguration(configuration);
+    } else {
+        finishFlightConfigurationUnavailable();
+    }
+}
+
+void Widget::onAircraftModelUnavailable()
+{
+    if (configurationLoading)
+        finishFlightConfigurationUnavailable();
 }
 
 void Widget::onFlightEnded()
@@ -472,6 +725,7 @@ void Widget::onFlightEnded()
     resetRadioHeight();
     resetLandingRate();
     flightActive = false;
+    clearFlightConfiguration();
     ui->pbtnEnum->setEnabled(false);
     ui->pbtnTest->setEnabled(false);
     setInfoText(QStringLiteral("Connected"), QStringLiteral("#006400"));
@@ -498,6 +752,7 @@ void Widget::onSimError(quint32 code)
 
     resetRadioHeight();
     resetLandingRate();
+    clearFlightConfiguration();
     ui->pbtnEnum->setEnabled(false);
     ui->pbtnTest->setEnabled(false);
 
@@ -563,9 +818,47 @@ void Widget::onKeyPressed(const QString &name)
 {
     ui->lbDetail->setText(name);
     timerDetail->start();
+    if (configExecutor)
+        configExecutor->handleKeyPressed(name);
+}
+
+void Widget::onConfigPageChanged(int page)
+{
+    if (page < 1 || page > 2) {
+        ui->lbPage->clear();
+        ui->lbPage->setStyleSheet(QString());
+        return;
+    }
+
+    QFont font = ui->lbPage->font();
+    font.setPointSize(11);
+    font.setBold(true);
+    ui->lbPage->setFont(font);
+    ui->lbPage->setAlignment(Qt::AlignCenter);
+    ui->lbPage->setText(QString::number(page));
+
+    const QString background = page == 1
+                                   ? QStringLiteral("rgb(18, 150, 219)")
+                                   : QStringLiteral("rgb(116, 219, 58)");
+    ui->lbPage->setStyleSheet(
+        QStringLiteral("QLabel { background-color: %1; color: black; }").arg(background));
 }
 
 void Widget::onDetailTimeout() { ui->lbDetail->clear(); }
+
+void Widget::on_ckbAuto_clicked(bool checked)
+{
+    if (configExecutor)
+        configExecutor->clear();
+
+    if (checked) {
+        ui->cbConfig->clear();
+        ui->cbConfig->setEnabled(false);
+    } else {
+        refreshConfigurationList();
+        ui->cbConfig->setEnabled(!connected);
+    }
+}
 
 void Widget::on_ckbRA_clicked(bool checked)
 {

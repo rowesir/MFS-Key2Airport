@@ -1,13 +1,14 @@
-// AIRCARFT  RA_CHECKBOX LD_CHECKBOX   PAGESWITCH PAGE_1 PAGE_2 这几个结构必须存在, 否则视为配置表无效
-// 限定AIRCARFT后面只能是字符串, 两个CHECKBOX后面只能是bool值, PAGESWITCH后面只能是字符串(这里无需验证是否是有效按键, 我们后续直接和我们读取的按键信息比对即可, 这里为空字符也可以)
+// AIRCRAFT RA_CHECKBOX LR_CHECKBOX PAGESWITCH VARIABLES PAGE_1 PAGE_2 这几个结构必须存在, 否则视为配置表无效
+// 限定AIRCRAFT后面只能是字符串, 两个CHECKBOX后面只能是bool值, PAGESWITCH后面只能是字符串(这里无需验证是否是有效按键, 我们后续直接和我们读取的按键信息比对即可, 这里为空字符也可以)
 // 以上任何一个不满足视为配置表无效, 当然如果json都解析失败了 那也是无效
-// PAGE_1和PAGE_2中可以为空 表示没有任何按键被绑定, 具体里面的内容见后面
+// VARIABLES位于PAGESWITCH下面并由两个页面共用, PAGE_1和PAGE_2中可以为空 表示没有任何按键被绑定, 具体里面的内容见后面
 
 {
-"AIRCARFT": "aircraft name",   // 这里是飞机名称
+"AIRCRAFT": "aircraft name",   // 这里是飞机名称
  "RA_CHECKBOX": false,           // 代表是否勾选ckbRA
- "LD_CHECKBOX": true, 	    // 代表是否勾选ckbLR
+ "LR_CHECKBOX": true, 	    // 代表是否勾选ckbLR
  "PAGESWITCH"  : "-",              //  代表配置页的切换绑定按键 比如按下-后就从PAGE_1 / PAGE_2 之间相互切换
+ "VARIABLES": [{"vnav":"12345"}, {"hdg":"4567"}], // 两个页面共用的变量和Hash定义
 
   "PAGE_1":{   // 配置表一
 
@@ -25,8 +26,6 @@
 // 以上是主要框架, 下面是PAGE_1/2里面的格式和逻辑, 假设是PAGE_1:
 
 "PAGE_1":{
-"VARIABLES":[{"vnav":"12345"}, {"hdg":"4567"}], // 这个数组用于用户定义的变量, 前面是变量名(自己取按键名), 后面是对应的HASH值(必须是字符串), 后续的操作都是基于此变量表的变量名
-
 "L CTRL+B":[  // 具体绑定的按键行为 前面是按键名称 同样也是和我们按键信息进行比对 此处不对字符串有效性检查
  // 具体规则, 按数组顺序执行, 若某一条判断或执行解析出错 则简单跳过即可 无需提示
 	{

@@ -10,13 +10,14 @@
 
 ## 1. 顶层结构
 
-配置文件的根节点必须是 JSON 对象，并且必须包含以下 6 个字段：
+配置文件的根节点必须是 JSON 对象，并且必须包含以下 7 个字段：
 
 ```text
-AIRCARFT
+AIRCRAFT
 RA_CHECKBOX
-LD_CHECKBOX
+LR_CHECKBOX
 PAGESWITCH
+VARIABLES
 PAGE_1
 PAGE_2
 ```
@@ -27,10 +28,11 @@ PAGE_2
 
 ```json
 {
-  "AIRCARFT": "Cessna 172",
+  "AIRCRAFT": "Cessna 172",
   "RA_CHECKBOX": false,
-  "LD_CHECKBOX": true,
+  "LR_CHECKBOX": true,
   "PAGESWITCH": "-",
+  "VARIABLES": [],
   "PAGE_1": {},
   "PAGE_2": {}
 }
@@ -40,26 +42,26 @@ PAGE_2
 
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
-| `AIRCARFT` | string | 当前配置对应的飞机名称。字段名沿用现有工程拼写。 |
+| `AIRCRAFT` | string | 当前配置对应的飞机名称。 |
 | `RA_CHECKBOX` | boolean | 是否勾选主窗口的无线电高度选项 `ckbRA`。 |
-| `LD_CHECKBOX` | boolean | 是否勾选主窗口的着陆率选项 `ckbLR`。 |
+| `LR_CHECKBOX` | boolean | 是否勾选主窗口的着陆率选项 `ckbLR`。 |
 | `PAGESWITCH` | string | 页面切换按键名称。按下后在 `PAGE_1` 和 `PAGE_2` 之间切换。空字符串表示不设置页面切换键。 |
+| `VARIABLES` | array | 全部页面共用的变量定义及 InputEvent Hash。 |
 | `PAGE_1` | object | 第一套按键配置。可以为空对象。 |
 | `PAGE_2` | object | 第二套按键配置。可以为空对象。 |
 
 除上述字段外，暂不定义其他顶层字段。未知字段可以忽略，但不能替代必需字段。
 
-`AIRCARFT`、`PAGESWITCH` 即使为空字符串，只要类型正确，仍属于格式合法；是否能匹配当前飞机或当前按键，由后续功能决定。
+`AIRCRAFT`、`PAGESWITCH` 即使为空字符串，只要类型正确，仍属于格式合法；是否能匹配当前飞机或当前按键，由后续功能决定。
 
 ---
 
 ## 2. 页面结构
 
-每个页面是一个 JSON 对象。页面可以为空对象，表示该页面没有任何按键绑定；页面不为空时必须包含 `VARIABLES` 字段。页面也可以只包含 `VARIABLES`，表示该页面没有按键绑定。
+每个页面是一个 JSON 对象。页面可以为空对象，表示该页面没有任何按键绑定。变量表位于顶层 `PAGESWITCH` 之后，由 `PAGE_1` 和 `PAGE_2` 共同使用。
 
 ```json
 {
-  "VARIABLES": [],
   "V": [
     {
       "THEN": "vnav = 1"
@@ -68,10 +70,7 @@ PAGE_2
 }
 ```
 
-页面中的字段分为两类：
-
-1. `VARIABLES`：变量定义；
-2. 其他字段：按键名称及其规则数组。
+页面中的字段都是按键名称及其规则数组。
 
 页面中的按键名称是 JSON 对象的字段名，例如：
 
@@ -87,7 +86,7 @@ PAGE_2
 
 ## 3. VARIABLES 变量表
 
-`VARIABLES` 是数组。数组中的每个元素必须是一个只包含一个键值对的 JSON 对象：
+`VARIABLES` 是顶层字段，位置在 `PAGESWITCH` 之后。它是数组，数组中的每个元素必须是一个只包含一个键值对的 JSON 对象。数组中的变量对 `PAGE_1` 和 `PAGE_2` 都有效：
 
 ```json
 "VARIABLES": [
@@ -160,7 +159,7 @@ vnav -> 111
 
 ## 4. 按键绑定结构
 
-页面中除 `VARIABLES` 以外的字段都可以作为按键绑定。按键字段的值必须是规则数组：
+页面中的字段都可以作为按键绑定。按键字段的值必须是规则数组：
 
 ```json
 "V": [
@@ -582,16 +581,16 @@ sizeof(double) == 8
 
 ```json
 {
-  "AIRCARFT": "SF50",
+  "AIRCRAFT": "SF50",
   "RA_CHECKBOX": true,
-  "LD_CHECKBOX": true,
+  "LR_CHECKBOX": true,
   "PAGESWITCH": "-",
+  "VARIABLES": [
+    { "vnav": "1231123123" },
+    { "hdg": "4567890123" },
+    { "gearLight": "9876543210" }
+  ],
   "PAGE_1": {
-    "VARIABLES": [
-      { "vnav": "1231123123" },
-      { "hdg": "4567890123" },
-      { "gearLight": "9876543210" }
-    ],
     "V": [
       {
         "THEN": "vnav = 1"
@@ -616,7 +615,6 @@ sizeof(double) == 8
     ]
   },
   "PAGE_2": {
-    "VARIABLES": []
   }
 }
 ```

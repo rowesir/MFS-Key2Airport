@@ -1,0 +1,17 @@
+configexecutor.o
+configmanager.o
+dialogenum.o
+dialogtest.o
+directinputlistener.o
+inputlistener.o
+main.o
+simconnectclient.o
+widget.o
+qrc_Icons.o
+moc_configexecutor.o
+moc_dialogenum.o
+moc_dialogtest.o
+moc_directinputlistener.o
+moc_inputlistener.o
+moc_simconnectclient.o
+moc_widget.o

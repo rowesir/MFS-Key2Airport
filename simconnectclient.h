@@ -30,6 +30,9 @@ public slots:
     void stopInputEventListening();
     void getInputEvent(quint64 hash);
     void sendInputEvent(quint64 hash, double value);
+    void getInputEventForConfig(quint64 executionId, quint64 hash);
+    void sendInputEventForConfig(quint64 executionId, quint64 hash, double value);
+    void requestAircraftModel();
     void startRadioHeightReading();
     void stopRadioHeightReading();
     void startLandingRateReading();
@@ -48,6 +51,10 @@ signals:
                             const QString &param, int size);
     void inputEventValueReceived(quint64 hash, double value);
     void inputEventValueUnavailable(quint64 hash);
+    void configInputEventValueReceived(quint64 executionId, bool success, double value);
+    void configInputEventSetFinished(quint64 executionId, bool success);
+    void aircraftModelReceived(const QString &model);
+    void aircraftModelUnavailable();
     void radioHeightReceived(double value);
     void radioHeightUnavailable();
     void landingRateReceived(double feetPerMinute);
@@ -64,6 +71,7 @@ private:
     void handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event);
     void notifyAircraftLoaded(const char *file);
     bool isRadioHeightException(DWORD code) const;
+    bool isInputEventException(DWORD code) const;
     void stopRadioHeightRequest();
     void stopLandingRateRequest();
     void resetLandingRateState();
@@ -82,7 +90,12 @@ private:
     QSet<quint64> inputEventParamRequests;
     QSet<quint64> subscribedInputEvents;
     QHash<SIMCONNECT_DATA_REQUEST_ID, quint64> inputEventGetRequests;
+    QHash<SIMCONNECT_DATA_REQUEST_ID, QPair<quint64, quint64>> configInputEventGetRequests;
     SIMCONNECT_DATA_REQUEST_ID nextInputEventRequestId = 2;
+    quint64 configInputEventSetExecutionId = 0;
+    bool configInputEventSetPending = false;
+    bool aircraftModelRequested = false;
+    bool aircraftModelDefinitionAdded = false;
     bool radioHeightRequested = false;
     bool landingRateRequested = false;
     bool radioHeightReading = false;

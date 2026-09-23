@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 18.0.0, 2026-09-23T10:45:39. -->
+<!-- Written by QtCreator 15.0.1, 2026-09-23T23:58:12. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
-  <value type="QByteArray">{9cb9c640-5107-4f30-9931-102255eee1df}</value>
+  <value type="QByteArray">{810fe1c8-2f20-4638-a6f4-9fba570f3811}</value>
  </data>
  <data>
   <variable>ProjectExplorer.Project.ActiveTarget</variable>
@@ -13,8 +13,8 @@
  <data>
   <variable>ProjectExplorer.Project.EditorSettings</variable>
   <valuemap type="QVariantMap">
-   <value type="bool" key="EditorConfiguration.AutoDetect">true</value>
    <value type="bool" key="EditorConfiguration.AutoIndent">true</value>
+   <value type="bool" key="EditorConfiguration.AutoSpacesForTabs">false</value>
    <value type="bool" key="EditorConfiguration.CamelCaseNavigation">true</value>
    <valuemap type="QVariantMap" key="EditorConfiguration.CodeStyle.0">
     <value type="QString" key="language">Cpp</value>
@@ -62,6 +62,19 @@
  <data>
   <variable>ProjectExplorer.Project.PluginSettings</variable>
   <valuemap type="QVariantMap">
+   <valuemap type="QVariantMap" key="AutoTest.ActiveFrameworks">
+    <value type="bool" key="AutoTest.Framework.Boost">true</value>
+    <value type="bool" key="AutoTest.Framework.CTest">false</value>
+    <value type="bool" key="AutoTest.Framework.Catch">true</value>
+    <value type="bool" key="AutoTest.Framework.GTest">true</value>
+    <value type="bool" key="AutoTest.Framework.QtQuickTest">true</value>
+    <value type="bool" key="AutoTest.Framework.QtTest">true</value>
+   </valuemap>
+   <value type="bool" key="AutoTest.ApplyFilter">false</value>
+   <valuemap type="QVariantMap" key="AutoTest.CheckStates"/>
+   <valuelist type="QVariantList" key="AutoTest.PathFilters"/>
+   <value type="int" key="AutoTest.RunAfterBuild">0</value>
+   <value type="bool" key="AutoTest.UseGlobal">true</value>
    <valuemap type="QVariantMap" key="ClangTools">
     <value type="bool" key="ClangTools.AnalyzeOpenFiles">true</value>
     <value type="bool" key="ClangTools.BuildBeforeAnalysis">true</value>
@@ -73,23 +86,21 @@
     <valuelist type="QVariantList" key="ClangTools.SuppressedDiagnostics"/>
     <value type="bool" key="ClangTools.UseGlobalSettings">true</value>
    </valuemap>
-   <value type="int" key="RcSync">0</value>
   </valuemap>
  </data>
  <data>
   <variable>ProjectExplorer.Project.Target.0</variable>
   <valuemap type="QVariantMap">
    <value type="QString" key="DeviceType">Desktop</value>
-   <value type="bool" key="HasPerBcDcs">true</value>
-   <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Desktop Qt 6.7.1 MinGW 64-bit</value>
-   <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Desktop Qt 6.7.1 MinGW 64-bit</value>
-   <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">qt.qt6.671.win64_mingw_kit</value>
+   <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Desktop Qt 6.8.2 MinGW 64-bit</value>
+   <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Desktop Qt 6.8.2 MinGW 64-bit</value>
+   <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">qt.qt6.682.win64_mingw_kit</value>
    <value type="qlonglong" key="ProjectExplorer.Target.ActiveBuildConfiguration">0</value>
    <value type="qlonglong" key="ProjectExplorer.Target.ActiveDeployConfiguration">0</value>
    <value type="qlonglong" key="ProjectExplorer.Target.ActiveRunConfiguration">0</value>
    <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.0">
-    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">D:\Code\MFS\Key2Airport\Release</value>
-    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory.shadowDir">D:/Code/MFS/Key2Airport/Release</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">D:\Work\Code\MFS-Key2Airport\Release</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory.shadowDir">D:/Work/Code/MFS-Key2Airport/Release</value>
     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
      <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
       <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
@@ -124,42 +135,6 @@
     <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.UserEnvironmentChanges"/>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Release</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4BuildConfiguration</value>
-    <value type="qlonglong" key="ProjectExplorer.Target.ActiveDeployConfiguration">0</value>
-    <value type="qlonglong" key="ProjectExplorer.Target.ActiveRunConfiguration">0</value>
-    <valuemap type="QVariantMap" key="ProjectExplorer.Target.DeployConfiguration.0">
-     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
-      <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">0</value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">部署</value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">部署</value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Deploy</value>
-     </valuemap>
-     <value type="int" key="ProjectExplorer.BuildConfiguration.BuildStepListCount">1</value>
-     <valuemap type="QVariantMap" key="ProjectExplorer.DeployConfiguration.CustomData"/>
-     <value type="bool" key="ProjectExplorer.DeployConfiguration.CustomDataEnabled">false</value>
-     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.DefaultDeployConfiguration</value>
-    </valuemap>
-    <value type="qlonglong" key="ProjectExplorer.Target.DeployConfigurationCount">1</value>
-    <valuemap type="QVariantMap" key="ProjectExplorer.Target.RunConfiguration.0">
-     <value type="bool" key="Analyzer.Perf.Settings.UseGlobalSettings">true</value>
-     <value type="bool" key="Analyzer.QmlProfiler.Settings.UseGlobalSettings">true</value>
-     <value type="int" key="Analyzer.Valgrind.Callgrind.CostFormat">0</value>
-     <value type="bool" key="Analyzer.Valgrind.Settings.UseGlobalSettings">true</value>
-     <valuelist type="QVariantList" key="CustomOutputParsers"/>
-     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
-     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-     <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
-     <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
-     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
-     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:</value>
-     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">D:/Code/MFS/Key2Airport/Key2Airport.pro</value>
-     <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
-     <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
-     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
-     <value type="bool" key="RunConfiguration.UseLibrarySearchPath">true</value>
-     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
-     <value type="QString" key="RunConfiguration.WorkingDirectory.default">%{RunConfig:Executable:Path}</value>
-    </valuemap>
-    <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">1</value>
     <value type="int" key="Qt4ProjectManager.Qt4BuildConfiguration.BuildConfiguration">0</value>
     <value type="int" key="QtQuickCompiler">0</value>
    </valuemap>
@@ -189,13 +164,12 @@
     <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:</value>
-    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">D:/Code/MFS/Key2Airport/Key2Airport.pro</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">D:/Work/Code/MFS-Key2Airport/Key2Airport.pro</value>
     <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
-    <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
     <value type="bool" key="RunConfiguration.UseLibrarySearchPath">true</value>
     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
-    <value type="QString" key="RunConfiguration.WorkingDirectory.default">%{RunConfig:Executable:Path}</value>
+    <value type="QString" key="RunConfiguration.WorkingDirectory.default">D:/Work/Code/MFS-Key2Airport/Release</value>
    </valuemap>
    <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">1</value>
   </valuemap>
@@ -203,6 +177,10 @@
  <data>
   <variable>ProjectExplorer.Project.TargetCount</variable>
   <value type="qlonglong">1</value>
+ </data>
+ <data>
+  <variable>ProjectExplorer.Project.Updater.FileVersion</variable>
+  <value type="int">22</value>
  </data>
  <data>
   <variable>Version</variable>

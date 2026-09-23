@@ -5,10 +5,12 @@
 #include <QPair>
 #include <QHash>
 #include <QTimer>
+#include <QStringList>
 #include <QWidget>
 
 #include "dialogenum.h"
 #include "dialogtest.h"
+#include "configexecutor.h"
 #include "directinputlistener.h"
 #include "inputlistener.h"
 #include "simconnectclient.h"
@@ -37,10 +39,13 @@ class Widget : public QWidget
 
   protected:
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
 
   private slots:
     void on_pbtnConnect_clicked();
+    void on_pbtnFolder_clicked();
+    void on_pbtnReload_clicked();
     void on_pbtnEnum_clicked();
     void on_pbtnTest_clicked();
     void onDialogEnumTestRequested();
@@ -53,6 +58,8 @@ class Widget : public QWidget
 
     void on_ckbLR_clicked(bool checked);
 
+    void on_ckbAuto_clicked(bool checked);
+
     void onSimConnected();
 
     void onSimDisconnected();
@@ -62,6 +69,10 @@ class Widget : public QWidget
     void onFlightStarted();
 
     void onAircraftLoaded(const QString &file);
+
+    void onAircraftModelReceived(const QString &model);
+
+    void onAircraftModelUnavailable();
 
     void onFlightEnded();
 
@@ -76,6 +87,8 @@ class Widget : public QWidget
     void onLandingRateCleared();
 
     void onLandingRateUnavailable();
+
+    void onConfigPageChanged(int page);
 
   private:
     class ControlGuard
@@ -99,6 +112,13 @@ class Widget : public QWidget
     void resetRadioHeightCallouts();
     void updateRadioHeightCallouts(double value);
     void resetLandingRate();
+    void initializeConfigurations();
+    void refreshConfigurationList();
+    void beginFlightConfiguration();
+    void finishFlightConfiguration(const AircraftConfiguration &configuration);
+    void finishFlightConfigurationUnavailable();
+    void clearFlightConfiguration();
+    void activateFlightFeatures();
     bool confirmFlightExit(const QString &action);
     QList<QWidget *> guardedControls() const;
 
@@ -110,10 +130,14 @@ class Widget : public QWidget
     InputListener *inputListener             = nullptr;
     DirectInputListener *directInputListener = nullptr;
     SimConnectClient *simClient              = nullptr;
+    ConfigExecutor *configExecutor           = nullptr;
     QTimer *timerDetail                      = nullptr;
     bool connected                           = false;
     bool flightActive                        = false;
     bool aircraftLoaded                      = false;
+    bool configurationLoading                = false;
+    bool flightFeaturesStarted               = false;
+    QStringList availableConfigurationNames;
     QHash<int, QSoundEffect *> radioHeightCalloutSounds;
     QHash<int, bool> radioHeightCalloutPlayed;
     double previousRadioHeight               = 0.0;
