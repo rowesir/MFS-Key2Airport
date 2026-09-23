@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'widget.ui'
 **
-** Created by: Qt User Interface Compiler version 6.8.2
+** Created by: Qt User Interface Compiler version 6.7.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -95,7 +95,7 @@ public:
         pbtnFolder->setMaximumSize(QSize(108, 32));
         pbtnFolder->setFont(font1);
         QIcon icon;
-        icon.addFile(QString::fromUtf8(":/Resoure/OpenFile.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        icon.addFile(QString::fromUtf8(":/Resoure/OpenFile.png"), QSize(), QIcon::Normal, QIcon::Off);
         pbtnFolder->setIcon(icon);
         pbtnFolder->setIconSize(QSize(20, 20));
 
@@ -127,7 +127,7 @@ public:
         font3.setBold(true);
         pbtnConnect->setFont(font3);
         QIcon icon1;
-        icon1.addFile(QString::fromUtf8(":/Resoure/CoilBalck.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        icon1.addFile(QString::fromUtf8(":/Resoure/CoilBalck.png"), QSize(), QIcon::Normal, QIcon::Off);
         pbtnConnect->setIcon(icon1);
         pbtnConnect->setIconSize(QSize(18, 18));
 
@@ -171,7 +171,7 @@ public:
         pbtnEnum->setMaximumSize(QSize(80, 30));
         pbtnEnum->setFont(font1);
         QIcon icon2;
-        icon2.addFile(QString::fromUtf8(":/Resoure/com.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        icon2.addFile(QString::fromUtf8(":/Resoure/com.png"), QSize(), QIcon::Normal, QIcon::Off);
         pbtnEnum->setIcon(icon2);
         pbtnEnum->setIconSize(QSize(20, 20));
 
@@ -187,7 +187,7 @@ public:
         pbtnTest->setMaximumSize(QSize(80, 30));
         pbtnTest->setFont(font1);
         QIcon icon3;
-        icon3.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        icon3.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Normal, QIcon::Off);
         pbtnTest->setIcon(icon3);
         pbtnTest->setIconSize(QSize(20, 20));
 

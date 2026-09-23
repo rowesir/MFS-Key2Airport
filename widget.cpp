@@ -397,6 +397,8 @@ void Widget::onSimConnected()
 
 void Widget::onSimDisconnected()
 {
+    if (dialogEnum.isVisible())
+        dialogEnum.reject();
     if (dialogTest.isVisible())
         dialogTest.reject();
 

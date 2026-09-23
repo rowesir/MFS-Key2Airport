@@ -1,7 +1,7 @@
 # Key2Airport 程序流程
 
-> 版本：v3.28
-> 最后更新：2026-09-22
+> 版本：v3.29
+> 最后更新：2026-09-23
 > 说明：本文档按讨论逐步补充，后续控件逻辑逐节追加。代码实现以本文档为准。
 
 ---
@@ -66,7 +66,7 @@ private:
 1. 构造函数末尾调用一次 —— 因此程序启动时两张表已经是空的，满足"程序开始时清空"的要求；
 2. 每次打开窗口前再调用一次 —— 因此每次打开窗口都是干净的两张表。
 
-当前打开方式：收到 `FLIGHT_START` 后使能 `pbtnEnum`；点击后先调用 `initUI()` 清空旧数据和枚举缓存，再以模态方式打开 `DialogEnum`，同时向 SDK 线程投递一次 `SimConnect_EnumerateInputEvents` 请求。枚举回包可能分成多个页面，每个页面中的 `SIMCONNECT_INPUT_EVENT_DESCRIPTOR` 都追加到枚举缓存，并按当前过滤条件显示到 `TWEnumAll`；每个 Hash 同时请求 `SimConnect_EnumerateInputEventParams` 获取参数签名，并调用 `SimConnect_SubscribeInputEvent` 开始监听。Dialog 关闭后取消本次打开期间的全部订阅；如果收到 `FLIGHT_END`、发生 SimConnect 异常或连接丢失，主窗口会主动关闭 Dialog，随后同样取消监听。`TWListem` 不过滤：普通 Hash 每次通知都插入第 0 行；某个 Hash 在最近 1 秒内达到 8 条通知后进入高频折叠，只保留一行并更新 Value / Time；已折叠 Hash 在最近 1 秒内降到 4 条或更少时恢复普通插入，切换时不恢复旧行，当前通知作为新的第 0 行。参数回包到达后按 Hash 更新当前显示行的 Param / Size。
+当前打开方式：收到 `FLIGHT_START` 后使能 `pbtnEnum`；点击后先调用 `initUI()` 清空旧数据和枚举缓存，再以模态方式打开 `DialogEnum`，同时向 SDK 线程投递一次 `SimConnect_EnumerateInputEvents` 请求。枚举回包可能分成多个页面，每个页面中的 `SIMCONNECT_INPUT_EVENT_DESCRIPTOR` 都追加到枚举缓存，并按当前过滤条件显示到 `TWEnumAll`；每个 Hash 同时请求 `SimConnect_EnumerateInputEventParams` 获取参数签名，并调用 `SimConnect_SubscribeInputEvent` 开始监听。Dialog 关闭后取消本次打开期间的全部订阅；如果收到 `FLIGHT_END`、发生 SimConnect 异常、连接丢失或主动断开，主窗口会主动关闭 Dialog，随后同样取消监听。`TWListem` 不过滤：普通 Hash 每次通知都插入第 0 行；某个 Hash 在最近 1 秒内达到 8 条通知后进入高频折叠，只保留一行并更新 Value / Time；已折叠 Hash 在最近 1 秒内降到 4 条或更少时恢复普通插入，切换时不恢复旧行，当前通知作为新的第 0 行。参数回包到达后按 Hash 更新当前显示行的 Param / Size。
 
 实现约定：`on_pbtnConnect_clicked` 和 `on_pbtnEnum_clicked` 必须声明在类的 `private slots:` 里。`setupUi` 的自动连接是 `QMetaObject::connectSlotsByName`，它只遍历元对象里注册过的方法，普通成员函数不会被连接。
 
@@ -550,3 +550,4 @@ AircraftLoaded ...\asobo_cj4\...\aircraft.cfg     ← 预览飞机加载
 | 2026-09-22 | v3.26 | 接地率显示统一增加负号；兼容 SimVar 返回正负号方向差异，避免显示双负号 |
 | 2026-09-22 | v3.27 | 新增 RA 高度异步语音播报；使用原始 `RADIO HEIGHT` 下降穿越阈值触发，起飞不播报，各高度使用独立音效允许重叠播放 |
 | 2026-09-22 | v3.28 | 明确所有 RA 播报阈值均使用独立音效，下降过快时任意多个高度播报都允许同时重叠 |
+| 2026-09-23 | v3.29 | `onSimDisconnected` 主动关闭 `DialogEnum`，断开时与测试窗口一起退出 |

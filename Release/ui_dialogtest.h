@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'dialogtest.ui'
 **
-** Created by: Qt User Interface Compiler version 6.8.2
+** Created by: Qt User Interface Compiler version 6.7.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -90,7 +90,7 @@ public:
         btnGet->setMaximumSize(QSize(80, 32));
         btnGet->setFont(font);
         QIcon icon;
-        icon.addFile(QString::fromUtf8(":/Resoure/Refresh.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        icon.addFile(QString::fromUtf8(":/Resoure/Refresh.png"), QSize(), QIcon::Normal, QIcon::Off);
         btnGet->setIcon(icon);
         btnGet->setIconSize(QSize(22, 22));
 
@@ -106,7 +106,7 @@ public:
         btnSend->setMaximumSize(QSize(80, 32));
         btnSend->setFont(font);
         QIcon icon1;
-        icon1.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Mode::Normal, QIcon::State::Off);
+        icon1.addFile(QString::fromUtf8(":/Resoure/Send.png"), QSize(), QIcon::Normal, QIcon::Off);
         btnSend->setIcon(icon1);
 
         horizontalLayout->addWidget(btnSend);
