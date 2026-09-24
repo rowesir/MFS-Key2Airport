@@ -13,6 +13,8 @@
 namespace {
 
 const int kRetryIntervalMs = 1000;
+const int kAircraftModelInitialDelayMs = 300;
+const int kAircraftModelRetryIntervalMs = 1000;
 const SIMCONNECT_CLIENT_EVENT_ID kEventAircraftLoaded = 1;
 const SIMCONNECT_DATA_REQUEST_ID kRequestEnumerateInputEvents = 1;
 const SIMCONNECT_DATA_DEFINITION_ID kDefinitionRadioHeight = 1;
@@ -230,15 +232,42 @@ void SimConnectClient::sendInputEventForConfig(quint64 executionId, quint64 hash
 
 void SimConnectClient::requestAircraftModel()
 {
-    if (!handle || !flightActive || aircraftModelRequested)
+    if (!handle || !flightActive)
         return;
+
+    // FLIGHT_START and the availability of ATC MODEL do not always happen at
+    // exactly the same time.  Start a delayed request and let the retry timer
+    // repeat it if SimConnect does not answer.
+    if (!aircraftModelRetryTimer) {
+        aircraftModelRetryTimer = new QTimer(this);
+        aircraftModelRetryTimer->setSingleShot(true);
+        connect(aircraftModelRetryTimer, &QTimer::timeout,
+                this, &SimConnectClient::retryAircraftModelRequest);
+    }
+
+    if (aircraftModelRequested || aircraftModelRetryTimer->isActive())
+        return;
+
+    aircraftModelRequested = false;
+    aircraftModelRetryTimer->stop();
+    aircraftModelRetryTimer->start(kAircraftModelInitialDelayMs);
+}
+
+void SimConnectClient::retryAircraftModelRequest()
+{
+    if (!handle || !flightActive)
+        return;
+
+    // The previous request may still be outstanding.  It is deliberately
+    // released after the timeout so a delayed response cannot block retries.
+    aircraftModelRequested = false;
 
     if (!aircraftModelDefinitionAdded) {
         const HRESULT definitionResult =
             SimConnect_AddToDataDefinition(handle, kDefinitionAircraftModel, "ATC MODEL", "",
                                            SIMCONNECT_DATATYPE_STRING64);
         if (FAILED(definitionResult)) {
-            emit aircraftModelUnavailable();
+            aircraftModelRetryTimer->start(kAircraftModelRetryIntervalMs);
             return;
         }
         aircraftModelDefinitionAdded = true;
@@ -250,11 +279,12 @@ void SimConnectClient::requestAircraftModel()
                                           SIMCONNECT_OBJECT_ID_USER_AIRCRAFT,
                                           SIMCONNECT_PERIOD_ONCE);
     if (FAILED(requestResult)) {
-        emit aircraftModelUnavailable();
+        aircraftModelRetryTimer->start(kAircraftModelRetryIntervalMs);
         return;
     }
 
     aircraftModelRequested = true;
+    aircraftModelRetryTimer->start(kAircraftModelRetryIntervalMs);
 }
 
 void SimConnectClient::startRadioHeightReading()
@@ -408,6 +438,9 @@ void SimConnectClient::closeConnection()
     configInputEventSetExecutionId = 0;
     aircraftModelRequested = false;
     aircraftModelDefinitionAdded = false;
+
+    if (aircraftModelRetryTimer)
+        aircraftModelRetryTimer->stop();
     radioHeightRequested = false;
     landingRateRequested = false;
     radioHeightDefinitionAdded = false;
@@ -467,6 +500,9 @@ void SimConnectClient::handleQuit()
     aircraftModelRequested = false;
     aircraftModelDefinitionAdded = false;
 
+    if (aircraftModelRetryTimer)
+        aircraftModelRetryTimer->stop();
+
     if (handle)
     {
         SimConnect_Close(handle);
@@ -510,7 +546,8 @@ void SimConnectClient::handleException(DWORD code)
         if (handle)
             SimConnect_ClearDataDefinition(handle, kDefinitionAircraftModel);
         aircraftModelDefinitionAdded = false;
-        emit aircraftModelUnavailable();
+        if (aircraftModelRetryTimer)
+            aircraftModelRetryTimer->start(kAircraftModelRetryIntervalMs);
         handled = true;
     }
 
@@ -550,6 +587,8 @@ void SimConnectClient::handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event)
         {
             flightActive = true;
             aircraftModelRequested = false;
+            if (aircraftModelRetryTimer)
+                aircraftModelRetryTimer->stop();
             emit flightStarted();
         }
         break;
@@ -562,6 +601,8 @@ void SimConnectClient::handleFlowEvent(const SIMCONNECT_RECV_FLOW_EVENT *event)
             stopLandingRateReading();
             flightActive = false;
             aircraftModelRequested = false;
+            if (aircraftModelRetryTimer)
+                aircraftModelRetryTimer->stop();
             configInputEventGetRequests.clear();
             configInputEventSetPending = false;
             configInputEventSetExecutionId = 0;
@@ -748,14 +789,18 @@ void CALLBACK SimConnectClient::dispatchProc(SIMCONNECT_RECV *data, DWORD cbData
         if (simObjectData->dwRequestID == kRequestAircraftModel &&
             simObjectData->dwDefineID == kDefinitionAircraftModel) {
             client->aircraftModelRequested = false;
+            if (client->aircraftModelRetryTimer)
+                client->aircraftModelRetryTimer->stop();
             if (simObjectData->dwDefineCount < 1) {
-                emit client->aircraftModelUnavailable();
+                if (client->aircraftModelRetryTimer)
+                    client->aircraftModelRetryTimer->start(kAircraftModelRetryIntervalMs);
                 break;
             }
 
             const size_t rawSize = cbData > valueOffset ? cbData - valueOffset : 0;
             if (rawSize == 0) {
-                emit client->aircraftModelUnavailable();
+                if (client->aircraftModelRetryTimer)
+                    client->aircraftModelRetryTimer->start(kAircraftModelRetryIntervalMs);
                 break;
             }
 
@@ -764,10 +809,14 @@ void CALLBACK SimConnectClient::dispatchProc(SIMCONNECT_RECV *data, DWORD cbData
             while (stringLength < stringSize && rawValue[stringLength] != '\0')
                 ++stringLength;
             const QString model = QString::fromUtf8(rawValue, int(stringLength)).trimmed();
-            if (model.isEmpty())
-                emit client->aircraftModelUnavailable();
-            else
+            if (model.isEmpty()) {
+                if (client->aircraftModelRetryTimer)
+                    client->aircraftModelRetryTimer->start(kAircraftModelRetryIntervalMs);
+            } else {
+                if (client->aircraftModelRetryTimer)
+                    client->aircraftModelRetryTimer->stop();
                 emit client->aircraftModelReceived(model);
+            }
             break;
         }
 

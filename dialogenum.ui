@@ -17,7 +17,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>SDK Enum</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <property name="leftMargin">

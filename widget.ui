@@ -23,9 +23,18 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Widget</string>
+   <string>K2A</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_4">
+   <property name="topMargin">
+    <number>2</number>
+   </property>
+   <property name="bottomMargin">
+    <number>2</number>
+   </property>
+   <property name="verticalSpacing">
+    <number>3</number>
+   </property>
    <item row="1" column="0">
     <widget class="QGroupBox" name="groupBox_2">
      <property name="minimumSize">

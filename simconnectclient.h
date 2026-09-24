@@ -72,6 +72,7 @@ private:
     void notifyAircraftLoaded(const char *file);
     bool isRadioHeightException(DWORD code) const;
     bool isInputEventException(DWORD code) const;
+    void retryAircraftModelRequest();
     void stopRadioHeightRequest();
     void stopLandingRateRequest();
     void resetLandingRateState();
@@ -82,6 +83,7 @@ private:
     HANDLE event = nullptr;
     QWinEventNotifier *notifier = nullptr;
     QTimer *retryTimer = nullptr;
+    QTimer *aircraftModelRetryTimer = nullptr;
     bool connecting = false;
     bool flightActive = false;
     bool inputEventListening = false;
