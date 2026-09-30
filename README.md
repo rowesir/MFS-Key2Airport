@@ -238,9 +238,9 @@ button, wrap the input name in parentheses:
 
 `B` runs when the key or button is pressed, while `(B)` runs when it is
 released. Release bindings for combinations such as `(L CTRL+B)` are not
-supported and are ignored. Holding multiple controller buttons together is
-also treated as a combination. Release events are also not provided for POV
-hats, analog axes, or the mouse wheel.
+supported and are ignored. Each controller button is handled independently,
+even when multiple buttons are held at the same time. Release events are also
+not provided for POV hats, analog axes, or the mouse wheel.
 
 ### Conditions
 

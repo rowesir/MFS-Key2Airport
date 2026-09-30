@@ -2,7 +2,6 @@
 
 #include <QHash>
 #include <QList>
-#include <QSet>
 #include <QTimer>
 #include <QWinEventNotifier>
 
@@ -20,8 +19,6 @@ struct DirectInputDevice
     int previousPov[4] = {-1, -1, -1, -1};
     DIJOYSTATE2 state = {};
     BYTE previous[128] = {};
-    QSet<int> pressedButtons;
-    QSet<int> comboButtons;
     HANDLE event = nullptr;
     QWinEventNotifier *notifier = nullptr;
 };
@@ -285,10 +282,11 @@ void DirectInputListener::assignDisplayNames()
 
 void DirectInputListener::pollDevices()
 {
-    for (DirectInputDevice *dev : devices) {
-        if (!dev->notifier)
-            readDevice(dev);
-    }
+    // Some DirectInput drivers signal the event on button-down but not on
+    // button-up.  Always poll the current state so both edges are detected.
+    // The event notifier remains as a low-latency supplementary path.
+    for (DirectInputDevice *dev : devices)
+        readDevice(dev);
 
     readMouse();
 }
@@ -339,21 +337,10 @@ void DirectInputListener::readDevice(DirectInputDevice *dev)
         const QString name = dev->displayName + QLatin1Char(' ') + dev->buttonNames.at(i);
         const bool isDown = (now & 0x80) != 0;
         const bool wasDown = (before & 0x80) != 0;
-        if (isDown && !wasDown) {
-            if (!dev->pressedButtons.isEmpty()) {
-                dev->comboButtons.unite(dev->pressedButtons);
-                dev->comboButtons.insert(i);
-            }
-            dev->pressedButtons.insert(i);
+        if (isDown && !wasDown)
             emit keyPressed(name);
-        } else if (!isDown && wasDown) {
-            if (!dev->comboButtons.contains(i))
-                emit keyReleased(name);
-            dev->pressedButtons.remove(i);
-            dev->comboButtons.remove(i);
-            if (dev->pressedButtons.isEmpty())
-                dev->comboButtons.clear();
-        }
+        else if (!isDown && wasDown)
+            emit keyReleased(name);
     }
 
     for (int i = 0; i < dev->povCount; ++i) {
