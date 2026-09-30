@@ -11,6 +11,8 @@
 #include <windows.h>
 
 #include <QObject>
+#include <QHash>
+#include <QSet>
 #include <QString>
 
 class InputListener : public QObject
@@ -25,6 +27,7 @@ public:
 
 signals:
     void keyPressed(const QString &name);
+    void keyReleased(const QString &name);
 
 private:
     enum Modifier {
@@ -48,6 +51,9 @@ private:
 
     HHOOK hook = nullptr;
     unsigned int modifiers = 0;
+    QSet<WPARAM> pressedKeys;
+    QSet<WPARAM> comboKeys;
+    QHash<WPARAM, QString> singleKeyReleases;
 };
 
 #endif // INPUTLISTENER_H

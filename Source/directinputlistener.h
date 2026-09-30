@@ -34,6 +34,7 @@ public slots:
 
 signals:
     void keyPressed(const QString &name);
+    void keyReleased(const QString &name);
 
 private:
     void assignDisplayNames();

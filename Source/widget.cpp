@@ -32,6 +32,7 @@ Widget::Widget(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowFlag(Qt::WindowStaysOnTopHint, true);
+    ui->labelVer->setText(QStringLiteral("v") + QString::fromLatin1(APP_VER));
 
     for (const int threshold : kRadioHeightCalloutThresholds) {
         // Keep one independent effect per callout so every threshold can
@@ -69,7 +70,9 @@ Widget::Widget(QWidget *parent)
     timerDetail->setInterval(10000);
     connect(timerDetail, &QTimer::timeout, this, &Widget::onDetailTimeout);
     connect(inputListener, &InputListener::keyPressed, this, &Widget::onKeyPressed);
+    connect(inputListener, &InputListener::keyReleased, this, &Widget::onKeyReleased);
     connect(directInputListener, &DirectInputListener::keyPressed, this, &Widget::onKeyPressed);
+    connect(directInputListener, &DirectInputListener::keyReleased, this, &Widget::onKeyReleased);
     connect(simClient, &SimConnectClient::connected, this, &Widget::onSimConnected);
     connect(simClient, &SimConnectClient::disconnected, this, &Widget::onSimDisconnected);
     connect(simClient, &SimConnectClient::connectionLost, this, &Widget::onSimConnectionLost);
@@ -820,6 +823,15 @@ void Widget::onKeyPressed(const QString &name)
     timerDetail->start();
     if (configExecutor)
         configExecutor->handleKeyPressed(name);
+}
+
+void Widget::onKeyReleased(const QString &name)
+{
+    const QString releaseName = QStringLiteral("(%1)").arg(name);
+    ui->lbDetail->setText(releaseName);
+    timerDetail->start();
+    if (configExecutor)
+        configExecutor->handleKeyPressed(releaseName);
 }
 
 void Widget::onConfigPageChanged(int page)

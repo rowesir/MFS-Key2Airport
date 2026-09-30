@@ -146,15 +146,53 @@ void InputListener::handleKey(WPARAM vk, bool down)
 {
     const unsigned int bit = modifierBit(vk);
 
-    if (bit) {
-        if (down)
-            modifiers |= bit;
-        else
+    if (!down) {
+        const bool wasPressed = pressedKeys.contains(vk);
+        const bool wasUsedInCombination = comboKeys.contains(vk);
+        pressedKeys.remove(vk);
+
+        if (bit)
             modifiers &= ~bit;
+
+        if (wasPressed && !wasUsedInCombination) {
+            const auto release = singleKeyReleases.constFind(vk);
+            if (release != singleKeyReleases.constEnd()) {
+                emit keyReleased(release.value());
+                singleKeyReleases.remove(vk);
+            }
+        } else {
+            singleKeyReleases.remove(vk);
+        }
+
+        comboKeys.remove(vk);
+        if (pressedKeys.isEmpty())
+            comboKeys.clear();
+        return;
     }
 
-    if (!down)
-        return;
+    // Repeated WM_KEYDOWN messages must not create a second logical key.
+    if (!pressedKeys.contains(vk)) {
+        if (!pressedKeys.isEmpty()) {
+            comboKeys.unite(pressedKeys);
+            comboKeys.insert(vk);
+            singleKeyReleases.clear();
+        } else {
+            singleKeyReleases.insert(vk, keyText(vk));
+        }
+        pressedKeys.insert(vk);
+    }
+
+    if (bit)
+        modifiers |= bit;
+
+    if (!bit && modifiers != 0)
+        comboKeys.unite(pressedKeys);
+
+    if (bit && pressedKeys.size() > 1)
+        comboKeys.unite(pressedKeys);
+
+    if (!bit && modifiers == 0 && comboKeys.isEmpty())
+        singleKeyReleases.insert(vk, keyText(vk));
 
     emit keyPressed(textFor(vk));
 }

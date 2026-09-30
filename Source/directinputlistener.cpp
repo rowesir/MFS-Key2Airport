@@ -2,6 +2,7 @@
 
 #include <QHash>
 #include <QList>
+#include <QSet>
 #include <QTimer>
 #include <QWinEventNotifier>
 
@@ -19,6 +20,8 @@ struct DirectInputDevice
     int previousPov[4] = {-1, -1, -1, -1};
     DIJOYSTATE2 state = {};
     BYTE previous[128] = {};
+    QSet<int> pressedButtons;
+    QSet<int> comboButtons;
     HANDLE event = nullptr;
     QWinEventNotifier *notifier = nullptr;
 };
@@ -333,8 +336,24 @@ void DirectInputListener::readDevice(DirectInputDevice *dev)
         const BYTE now = dev->state.rgbButtons[i];
         const BYTE before = dev->previous[i];
         dev->previous[i] = now;
-        if ((now & 0x80) && !(before & 0x80))
-            emit keyPressed(dev->displayName + QLatin1Char(' ') + dev->buttonNames.at(i));
+        const QString name = dev->displayName + QLatin1Char(' ') + dev->buttonNames.at(i);
+        const bool isDown = (now & 0x80) != 0;
+        const bool wasDown = (before & 0x80) != 0;
+        if (isDown && !wasDown) {
+            if (!dev->pressedButtons.isEmpty()) {
+                dev->comboButtons.unite(dev->pressedButtons);
+                dev->comboButtons.insert(i);
+            }
+            dev->pressedButtons.insert(i);
+            emit keyPressed(name);
+        } else if (!isDown && wasDown) {
+            if (!dev->comboButtons.contains(i))
+                emit keyReleased(name);
+            dev->pressedButtons.remove(i);
+            dev->comboButtons.remove(i);
+            if (dev->pressedButtons.isEmpty())
+                dev->comboButtons.clear();
+        }
     }
 
     for (int i = 0; i < dev->povCount; ++i) {

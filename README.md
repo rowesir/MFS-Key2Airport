@@ -6,6 +6,10 @@ K2A is a key-binding utility for Microsoft Flight Simulator.
 It listens for keyboard, mouse, and game-controller input, then sends aircraft
 button events according to a JSON configuration.
 
+## Updates
+
+- Added release-event bindings for single keyboard keys and individual game-controller buttons. Use parentheses in the JSON key name, for example `(B)`. Key-combination releases are not supported.
+
 ## 1. Connecting and basic use
 
 1. Start Microsoft Flight Simulator.
@@ -219,6 +223,24 @@ Each rule can contain these fields:
 
 A key may contain multiple rules. They run from top to bottom in the order in
 which they appear in the JSON file.
+
+To bind an action to the release of a single keyboard key or game-controller
+button, wrap the input name in parentheses:
+
+```json
+"B": [
+  { "THEN": "button = 1" }
+],
+"(B)": [
+  { "THEN": "button = 0" }
+]
+```
+
+`B` runs when the key or button is pressed, while `(B)` runs when it is
+released. Release bindings for combinations such as `(L CTRL+B)` are not
+supported and are ignored. Holding multiple controller buttons together is
+also treated as a combination. Release events are also not provided for POV
+hats, analog axes, or the mouse wheel.
 
 ### Conditions
 

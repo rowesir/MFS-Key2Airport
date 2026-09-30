@@ -1,19 +1,21 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
+#include <QHash>
 #include <QList>
 #include <QPair>
-#include <QHash>
-#include <QTimer>
 #include <QStringList>
+#include <QTimer>
 #include <QWidget>
 
+#include "configexecutor.h"
 #include "dialogenum.h"
 #include "dialogtest.h"
-#include "configexecutor.h"
 #include "directinputlistener.h"
 #include "inputlistener.h"
 #include "simconnectclient.h"
+
+#define APP_VER "1.0.1"
 
 QT_BEGIN_NAMESPACE
 class QThread;
@@ -51,6 +53,7 @@ class Widget : public QWidget
     void onDialogEnumTestRequested();
 
     void onKeyPressed(const QString &name);
+    void onKeyReleased(const QString &name);
 
     void onDetailTimeout();
 
@@ -140,7 +143,7 @@ class Widget : public QWidget
     QStringList availableConfigurationNames;
     QHash<int, QSoundEffect *> radioHeightCalloutSounds;
     QHash<int, bool> radioHeightCalloutPlayed;
-    double previousRadioHeight               = 0.0;
-    bool hasPreviousRadioHeight               = false;
+    double previousRadioHeight  = 0.0;
+    bool hasPreviousRadioHeight = false;
 };
 #endif // WIDGET_H
